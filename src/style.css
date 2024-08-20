@@ -1,0 +1,271 @@
+body{
+    background-color: steelblue;
+}
+div.definitions{
+    margin: 2em;
+    padding:15px;
+    border-radius: 10%;
+    /** background-image: radial-gradient(springgreen 0%, steelblue 90%);*/
+    background-color: springgreen;
+    box-shadow: inset 0 0 20px steelblue;
+    min-height:33vw;
+}
+
+svg{
+    display: block;
+    background-color: white;
+}
+
+div.definitions>label:first-of-type{
+    display: block;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+div.definitions div.controls{
+    text-align: center;
+    margin-top: 1em;
+}
+div.definitions div.controls>*{
+    font-size: 1rem;
+}
+
+div.component{
+    position: relative;
+}
+
+div.component label:not(.slider){
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: white;
+    text-shadow:    -1px -1px 0 black,
+                     0px -1px 0 black,
+                    1px -1px 0 black,
+                    -1px 0px 0 black,
+                     1px 0px 0 black,
+                    -1px 1px 0 black,
+                     0px 1px 0 black,
+                    1px 1px 0 black;
+    vertical-align: middle;
+}
+
+div.component *{
+    margin-top: .25rem;
+}
+
+div.component>div:first-of-type{
+    display: flex;
+}
+
+div.component div.controls{
+    position:absolute;
+    right: 0;
+    top: 0;
+    display: flex;
+    margin: .25rem;
+    margin-left: auto;
+}
+
+div.component input{
+    border-radius: 5px;
+    border-style: none;
+    box-shadow: 1px 1px 3px 0px black;
+    padding: .25rem;
+    outline:none;
+    margin-left: .5rem;
+}
+
+div.component hr.attributes{
+    border: none;
+    border-top: .25rem dashed black;
+    overflow: visible;
+    text-align: center;
+    height: 1rem;
+    margin-top: 1rem;
+}
+
+div.component hr.attributes::after{
+    position: relative;
+    top: -.75rem;
+    padding: 0 .5rem;
+    content: "Show Attributes";
+    background-color: springgreen;
+}
+div.component hr.attributes.show::after{
+    content: "Hide Attributes";
+}
+
+div.component hr:not(.show)+div#attributes{
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .5s;
+}
+
+div.component hr.show+div#attributes{
+    max-height: 10rem;
+    overflow: auto;
+    transition: max-height .5s;
+}
+
+div.component span#name{
+    text-orientation: upright;
+    writing-mode: vertical-lr;
+    padding-right: 1em;
+}
+
+
+div[data-type="equation"] input:disabled{
+    background-color: silver;
+    color:white
+}
+
+input#name{
+    width: 5rem;
+}
+input#equation{
+    width: fill-available;
+    width: -webkit-fill-available;
+}
+
+input#name.error{
+    background-color: lightcoral;
+}
+
+div.svgcomponent{
+    border: 1px solid black;
+    padding: .5rem;
+}
+
+div.attribute{
+    position: relative;
+}
+
+div.attribute label{
+    display: block;
+}
+
+div.attribute label:nth-of-type(2){
+    margin-left: 1rem;
+}
+
+label:has(input.coordinate){
+    display: block;
+}
+input.coordinate{
+    display: inline-flex;
+}
+
+/** Widgets */
+
+span.button {
+    display: inline-block;
+    align-self: center;
+    width: .75rem;
+    height: .75rem;
+    border-radius: 50%;
+    margin: .5rem;
+    cursor: pointer;
+    transition: background-color .2s;
+    box-shadow: 1px 1px 3px 0px black;
+}
+
+span.button.remove{
+    background-color: red;
+}
+
+    span.button.remove:hover{
+        background-color: darkred;
+    }
+
+    span.button.remove:active{
+        background-color: lightcoral;
+    }
+
+
+span.button.addCommand{
+    background-color: green;
+}
+
+    span.button.addCommand:hover{
+        background-color: darkgreen;
+    }   
+
+    span.button.addCommand:active{
+        background-color: lightgreen;
+    }
+
+span.button.addAttribute{
+    background-color: blue;
+}
+
+    span.button.addAttribute:hover{
+        background-color: darkblue;
+    }
+
+    span.button.addAttribute:active{
+        background-color: lightblue;
+    }
+
+span.button.error{
+    cursor: help;
+    background-color: yellow;
+    animation: alternate-color 0.5s ease-out infinite alternate;
+}
+
+@keyframes alternate-color{
+    from{
+        background-color: yellow;
+        box-shadow: 0 0 3px 3px white;
+    }
+    to{
+        background-color: yellow;
+        box-shadow: 0 0 3px 3px rgba(0,0,0,0);
+    }
+}
+
+
+
+label.slider{
+    display: block;
+    width: 3rem;
+    height: 1.2rem;
+
+    background-color: greenyellow;
+    border-radius: .5rem;
+    cursor: pointer;
+    position: relative;
+    border: 1px solid;
+    box-shadow: 1px 1px 3px 0px black;
+}
+    label.slider:after{
+        content: "";
+        position: absolute;
+        top: .1rem;
+        left: .1rem;
+        width: 1rem;
+        height: 1rem;
+        background-color: white;
+        border-radius: 50%;
+        transition: .2s;
+    }
+
+        label.slider:has(input[type="checkbox"]:checked):after{
+            left: calc(100% - .1rem);
+            transform: translateX(-100%);
+        }
+
+    label:active:after{
+        width: 1.5rem;
+    }
+
+    label.slider:has(input[type="checkbox"]:checked){
+        background-color: tomato;
+    }
+
+    label.slider>input[type="checkbox"]{
+        height: 0;
+        width: 0;
+        visibility: hidden;
+    }
+

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<div class="point" style="position: relative;">
+    <div class="controls">
+        <span id="remove" class="button remove" title="Remove" aria-label="Remove"></span>
+    </div>
+    <div>
+        <label for="type" style="display:block;">Type: <select id="type">
+            <option value="move" selected>Move to</option>
+            <option value="line">Line to</option>
+            <option value="horizontal">Horizontal line to</option>
+            <option value="vertical">Vertical line to</option>
+            <option value="cubic">Cubic Bezier Curve</option>
+            <option value="shortcubic">Short Cubic Bezier Curve</option>
+            <option value="quadratic">Quadratic Bezier Curve</option>
+            <option value="shortquadratic">Short Quadratic Bezier Curve</option>
+            <option value="arc">Arc</option>
+            <option value="close">Close Path</option>
+        </select></label>
+        <label for="relative" style="display:block;">Relative Coordinates <input type="checkbox" id="relative" /></label>
+        <div id="default" class="args">
+            <label for="x">X: <input id="x" type="text" class="coordinate" value="0"></label>
+            <label for="y">Y: <input id="y" type="text" class="coordinate" value="0"></label>
+        </div>
+        <div id="cubic" class="args">
+            <label for="x1">X1: <input id="x1" type="text" class="coordinate" value="0"></label>
+            <label for="y1">Y1: <input id="y1" type="text" class="coordinate" value="0"></label>
+            <label for="x2">X2: <input id="x2" type="text" class="coordinate" value="0"></label>
+            <label for="y2">Y2: <input id="y2" type="text" class="coordinate" value="0"></label>
+            <label for="x">X: <input id="x" type="text" class="coordinate" value="0"></label>
+            <label for="y">Y: <input id="y" type="text" class="coordinate" value="0"></label>
+        </div>
+        <div id="quadratic" class="args">
+            <label for="x1">X1: <input id="x1" type="text" class="coordinate" value="0"></label>
+            <label for="y1">Y1: <input id="y1" type="text" class="coordinate" value="0"></label>
+            <label for="x">X: <input id="x" type="text" class="coordinate" value="0"></label>
+            <label for="y">Y: <input id="y" type="text" class="coordinate" value="0"></label>
+        </div>
+        <div id="arc" class="args">
+            <label for="rx">Radius X: <input id="rx" type="text" class="coordinate" value="0"></label>
+            <label for="ry">Radius Y: <input id="ry" type="text" class="coordinate" value="0"></label>
+            <label for="x">X: <input id="x" type="text" class="coordinate" value="0"></label>
+            <label for="y">Y: <input id="y" type="text" class="coordinate" value="0"></label>
+            <label for="xRotation">X Axis Rotation: <input id="xRotation" type="text" class="coordinate" value="0"></label>
+            <label for="largeArcFlag">Large Arc: <input id="largeArcFlag" type="checkbox"></label>
+            <label for="sweepFlag">Sweep: <input id="sweepFlag" type="checkbox"></label>
+        </div>
+    </div>
+    <hr />
+</div>

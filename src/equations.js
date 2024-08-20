@@ -1,293 +1,198 @@
 /**
+ * Module for parsing and evaluating equations
+ * 
+ * Restrictions:
+ *  - Variable names must start with a letter or underscore and be composed of values [a-zA-Z0-9_]
+ *  - Variable names must be unique within an execution of evaluateEquation
+ *  - No circular dependencies
+ *  - Decimal points must be preceded by a digit
+ *  - Implicit multiplication is not allowed (e.g.- "2x" and "4(x+1)" are invalid and should instead be "2*x" and "4*(x+1)")
+ */
+
+/**
  * @typedef {String} VariableName
  * @typedef {String} Equation
+ * @typedef {Number} Result
  * 
- * @typedef {Map<VariableName, Equation} Variables
+ * @typedef {Map<VariableName, Equation|Result} Variables
  */
  
+// Set to undefined to disable debugging,
+// otherwise should be an integer representing spacing per indent
 var DEBUGTAB = 0;
 function log(...args){
     if(typeof DEBUGTAB == "undefined") return;
     console.log(" ".repeat(DEBUGTAB*2), ...args);
 }
+DEBUGDEC = ()=>{if (typeof DEBUGTAB != "undefined") DEBUGTAB--;}
+DEBUGINC = ()=>{if (typeof DEBUGTAB != "undefined") DEBUGTAB++;}
 
-function parseEquation(equation, variables = undefined, dependencies = undefined){
-    if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-    if(typeof variables == "undefined"){ variables = {}; }
-    if(typeof dependencies == "undefined"){ dependencies = []; }
-    let wordchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_";
-    let numberchars = "0123456789.-";
-    let index = 0;
 
-    function iterWhitespace(reverse = false){
-        if(index >= equation.length || index < 0){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Index out of bounds: ${index}`);
-        }
-        if(reverse){
-            while(equation[index] == " " && index >= 0){
-                index-=1;
+/**
+ * Parses and evaluates an equation.
+ * @param {Equation} equation - The equation to evaluate
+ * @param {Variables} variables - The variables to use
+ * @param {VariableName[]} dependencies - Variables that are dependent on the equation (this is normally not supplied by the user)
+ * @returns {Number} - The result of the equation
+ */
+function evaluateEquation(equation, variables = {}, dependencies = []){
+    DEBUGINC();
+
+    /**
+     * Substitutes variables in the equation and then returns the result of resolveParentheses
+     * @param {Equation} equation - The equation to substitute
+     * @param {Variables} variables - The variables to use
+     * @param {VariableName[]} dependencies - Variables that are dependent on the equation (this is normally not supplied by the user)
+     * @returns {Number} - The result of resolveParentheses
+     */
+    function substituteVariables(equation, variables, dependencies){
+        DEBUGINC();
+        var VARIABLEREG = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+        let variable
+        while((variable = VARIABLEREG.exec(equation)) !== null){
+            let variablename = variable[0];
+            if(variables[variablename] == undefined){
+                DEBUGDEC();
+                throw new Error("Failed to substitute variable: " + variable[0]);
             }
-            return;
-        }
-        while(equation[index] == " " && index < equation.length){
-            index+=1;
-        }
-    }
-
-    function parseNumber(reverse = false){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-        let number = "";
-        log("~~~", index, equation.length, equation[index], reverse);
-        iterWhitespace(reverse);
-        if(index >= equation.length || index < 0){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Index out of bounds: ${index}`);
-        }
-        if(numberchars.indexOf(equation[index]) == -1){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return NaN;
-        }
-        if(reverse){
-            while(index >= 0 && numberchars.indexOf(equation[index]) != -1){
-                number += equation[index];
-                index-=1;
+            if(dependencies.includes(variablename)){
+                DEBUGDEC();
+                throw new Error("Cyclical dependency: " + variablename + " in " + equation);
             }
-            // Need to set index to the last character added to number
-            index+=1;
-            number = number.split("").reverse().join("");
-        }else{
-            while(index < equation.length && numberchars.indexOf(equation[index]) != -1){
-                log("???", equation[index]);
-                number += equation[index];
-                index+=1;
-            }
-            // Do not need to set index to the last character added to number
-            // because parsing will continue from the next character
-        }
-        log("!!!", number);
-        if(!number.length){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return NaN;
-        }
-        if(number.split(".").length > 2){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Invalid Number: ${number}`);
-        }
-        if(number.split("-").length > 2){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Invalid Number: ${number}`);
-        }
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-        return Number(number);
-    }
-
-    function parseOperation(operations){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-        equation = equation.trim();
-        if(equation.indexOf("+") == 0){
-            equation = equation.slice(1);
-            if(index > 0) index-=1;
-        }
-        if(index >= equation.length || index < 0){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Index out of bounds: ${index}`);
-        }
-        let operators = Object.keys(operations);
-        let found = null;
-        for(let op of operators){
-            log(`"${equation}"`, op, equation.indexOf(op, 1));
-            let ind = equation.indexOf(op, 1);
-            if(ind == -1) continue;
-            if(found === null) found = op;
-            else if(ind < equation.indexOf(found, 1)) found = op;
-        }
-        if(found === null){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return false;
-        }
-        index = equation.indexOf(found, 1)-1;
-        let a = parseNumber(true);
-        let startindex = index;
-        log(">>>>>> a", a, index);
-        if(isNaN(a)){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Invalid Equation: ${equation}`);
-        }
-        index = equation.indexOf(found,1)+found.length;
-        if(index >= equation.length){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return a;
-        }
-        let b = parseNumber();
-        log(">>>>>> b", b, index);
-        if(isNaN(b)){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Invalid Equation: ${equation}`);
-        }
-
-        let value = operations[found](a, b);
-        log(value);
-        log(startindex, index, equation.length);
-        log(equation.slice(0, startindex), value, equation.slice(index, equation.length));
-        equation = equation.slice(0, startindex) + value + equation.slice(index, equation.length);
-        log("After Operation", found,":", equation);
-        index = 0;
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-        return true;
-    }
-
-    function parseVariables(){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-
-        function parseVariable(){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-            iterWhitespace();
-            if(index >= equation.length){
-                if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-                return false;
-            }
-            if(wordchars.indexOf(equation[index]) == -1){
-                if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-                return false;
-            }
-            let variable = "";
-            while(index < equation.length && wordchars.indexOf(equation[index]) != -1){
-                variable += equation[index];
-                index+=1;
-            }
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return variable;
-        }
-
-        index = 0;
-        while(index < equation.length){
-            let originalindex = index;
-            log(index, equation.length);
-            let variable = parseVariable();
-            log("Variable Found:", variable);
-            if(variable === false){
-                index+=1;
-                continue;
-            };
-            let value = variables[variable];
-            if(value === undefined){
-                if(typeof DEBUGTAB != "undefined") DEBUGTAB = 0;
-                throw new Error(`Unknown Variable: ${variable}`);
-            }
-            if(typeof value == "string"){
-                if(dependencies.includes(variable)){
-                    if(typeof DEBUGTAB != "undefined") DEBUGTAB = 0;
-                    throw new Error(`Circular Dependency: Variable ${variable} already in use`);
-                }
-                dependencies.push(variable);
-                log(">>> Resolving Dependency: " + variable + " = " + value);
+            if(typeof variables[variablename] == "string"){
                 let depcopy = [...dependencies];
-                log("       Dependencies: ", depcopy);
-                log("       Index:", index);
-                value = parseEquation(value, variables, depcopy);
-                log("<<< Value", value);
-                log("<<< Index:", index);
-                variables[variable] = value;
+                variables[variablename] = evaluateEquation(variables[variablename], variables, depcopy);
+                dependencies.push(variablename);
             }
-            log("Variable: " + variable + " = " + value);
-            log(originalindex, index, equation.length);
-            log(equation.slice(0, originalindex), value, equation.slice(index, equation.length));
-            equation = equation.slice(0, originalindex) + value + equation.slice(index, equation.length);
-            index = originalindex + (""+value).length;
-            log(">>>", index, equation.length);
-        }
-        index = 0;
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-    }
-
-    function parseParens(){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-        log("P>P>", equation, index);
-        popen = equation.indexOf("(", index);
-        pclose = equation.indexOf(")", index);
-        log("?P?", popen, pclose);
-        if(pclose!= -1){
-            if(popen == -1 || pclose < popen){
-                if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-                return pclose;
+            let eq = equation;
+            equation = equation.slice(0, variable.index) + variables[variablename] + equation.slice(variable.index + variablename.length);
+            if(eq == equation){
+                DEBUGDEC();
+                throw new Error("Failed to substitute variable: " + variable[0] + "in " + eq + " >>> result: " + equation);
             }
         }
-        if(popen == -1){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return false;
+        DEBUGDEC();
+        return resolveParentheses(equation, variables, dependencies);
+    }
+    /**
+     * Resolves all parentheses in the equation recursively and then returns the result of evaluateOperations
+     * @param {Equation} equation - The equation to resolve
+     * @param {Variables} variables - The variables to use (not used in this function)
+     * @param {VariableName[]} dependencies - Variables that are dependent on the equation (this is normally not supplied by the user; not used in this function)
+     * @returns {Number} - The result of evaluateOperations
+     */
+    function resolveParentheses(equation, variables, dependencies){
+        DEBUGINC();
+        
+        let open = equation.indexOf("(");
+        let close = equation.indexOf(")");
+        if(open < 0 && close < 0){
+            DEBUGDEC();
+            return evaluateOperations(equation, variables, dependencies);
         }
-        if(pclose == -1){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Parenthesis Mismatch: ${equation}`)
-        };
-        index = popen+1;
-        let idx = parseParens();
-        log("<P<P<", equation, index, idx);
-        if(idx === false){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-            throw new Error(`Parenthesis Mismatch: ${equation}`);
+        if(open >= 0 && close < 0){
+            DEBUGDEC();
+            throw new Error("Missing closing parenthesis: " + equation);
         }
-        log(equation.slice(index, idx));
-        let value = parseEquation(equation.slice(index, idx), variables, dependencies);
-        log(equation, popen, index);
-        equation = equation.slice(0, index-1) + value + equation.slice(idx+1, equation.length);
-        index = popen;
-        log("<P<P<P<", equation, index);
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-        return parseParens();
+        if(open < 0 || close < open){
+            let value = resolveParentheses(equation.slice(0,close), variables, dependencies);
+            return value + equation.slice(close+1);
+        }
+        let eq = equation;
+        let value = resolveParentheses(equation.slice(open+1), variables, dependencies);
+        equation = equation.slice(0, open)+ value;
+        if(eq == equation){
+            DEBUGDEC();
+            throw new Error("Failed to resolve parentheses: " + eq + " >>> result: " + equation);
+        }
+        DEBUGDEC();
+        return resolveParentheses(equation, variables, dependencies);        
     }
 
-    function parseExp(){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-        let result = parseOperation({'^': (a,b)=>Math.pow(a,b)});
-        if(!result){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return parseMultDiv();
+    /**
+     * Evaluates operations in the equation and replaces them with their results, ultimately returning the result
+     * @param {Equation} equation - The equation to evaluate
+     * @param {Variables} variables - The variables to use (not used in this function)
+     * @param {VariableName[]} dependencies - Variables that are dependent on the equation (this is normally not supplied by the user; not used in this function)
+     * @returns {Number} - The result of the equation
+     */
+    function evaluateOperations(equation, variables, dependencies){
+        DEBUGINC();
+        var OPERATIONPRIORITY = [
+            [
+                ["^", (a,b)=>Math.pow(a,b)],
+            ],
+            [
+                ["*", (a,b)=>a*b],
+                ["/", (a,b)=>a/b],
+                ["%", (a,b)=>a%b],
+            ],
+            [
+                ["+", (a,b)=>a+b],
+                ["-", (a,b)=>a-b],
+            ],
+        ];
+
+        for(let operation of OPERATIONPRIORITY){
+            let match, f;
+            let regs = [];
+            for (let [operator, func] of operation){
+                regs.push(new RegExp("(?:^\\+)?(?<a>-?\\d+(?:\\.\\d+)?)\\"+operator+"(?<b>-?\\d+(?:\\.\\d+)?)", "g"));
+            }
+
+            for(let i = 0; i < regs.length; i++){
+                let reg = regs[i];
+                let func = operation[i][1];
+                let m = reg.exec(equation);
+                if(m == null) continue;
+                if(!match || m.index < match.index){
+                    match = m;
+                    f = func;
+                }
+            }
+            if(!match) continue;
+
+            let a = parseValue(match.groups.a);
+            let b = parseValue(match.groups.b);
+            let eq = equation;
+
+            // log(equation, a, f, b, match.index, match[0].length);
+
+            equation = equation.slice(0, match.index) + f(a,b) + equation.slice(match.index + match[0].length);
+
+            if(eq == equation){
+                DEBUGDEC();
+                throw new Error("Failed to evaluate operation: " + equation);
+            }
+
+            DEBUGDEC();
+            return evaluateOperations(equation, variables, dependencies);
         }
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-        return parseExp();
+
+        DEBUGDEC();
+        return parseValue(equation, variables, dependencies);
     }
 
-    function parseMultDiv(){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-        let result = parseOperation({'*': (a,b)=>a*b, '/':(a,b)=>a/b});
-        if(!result){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return parsePlusMinus();
+    /**
+     * Parses the result of the equation
+     * @param {Equation} equation - The equation to parse
+     * @param {Variables} variables - The variables to use
+     * @param {VariableName[]} dependencies - Variables that are dependent on the equation
+     * @returns {Number} - The result of the equation
+     */
+    function parseValue(equation, variables, dependencies){
+        DEBUGINC();
+        let result = Number(equation);
+        if(isNaN(result)){
+            DEBUGDEC();
+            throw new Error(`Failed to parse equation: ${equation}`);
         }
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-        return parseMultDiv();
+        DEBUGDEC();
+        return result;
     }
-
-    function parsePlusMinus(){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB++;
-        let result = parseOperation({'+': (a,b)=>a+b, '-':(a,b)=>a-b});
-        if(!result){
-            if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-            return parseValue(equation);
-        }
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-        return parsePlusMinus();
-    }
-
-    function parseValue(equation){
-        return Number(equation);
-    }
-
-    console.log(DEBUGTAB)
-    log("In:", equation);
-    parseVariables();
-    log("After Variables:", equation);
-    parseParens();
-    index = 0;
-    log("After Parens:", equation);
-    let value = parseExp();
-    log("Value:", value);
-    if(isNaN(value)){
-        if(typeof DEBUGTAB != "undefined") DEBUGTAB=0;
-        throw new Error(`Failed to Parse Equation: ${equation}`);
-    }
-    if(typeof DEBUGTAB != "undefined") DEBUGTAB--;
-    return value;
+    equation = equation.replace(/\s/g, "");
+    if(equation.startsWith("=")) equation = equation.slice(1);
+    equation = substituteVariables(equation, variables, dependencies);
+    DEBUGDEC();
+    return equation;
 }
