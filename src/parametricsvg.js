@@ -1,109 +1,274 @@
 const XMLNS = "http://www.w3.org/2000/svg";
 
+/**
+ * 
+ * A descriptor for an SVG Component element
+ * @typedef {Object} SVGDescription
+ * @property {string} type - The type of element
+ * @property {Object<string, string>} attributes - The attributes of the element
+ * 
+ * @typedef {Object} CircleDescription
+ * @extends {SVGDescription}
+ * @property {"circle"} type - The type of element
+ * @property {number} cx - The x coordinate of the center of the circle
+ * @property {number} cy - The y coordinate of the center of the circle
+ * @property {number} r - The radius of the circle
+ * 
+ * @typedef {Object} EllipseDescription
+ * @extends {SVGDescription}
+ * @property {"ellipse"} type - The type of element
+ * @property {number} cx - The x coordinate of the center of the ellipse
+ * @property {number} cy - The y coordinate of the center of the ellipse
+ * @property {number} rx - The x radius of the ellipse
+ * @property {number} ry - The y radius of the ellipse
+ * 
+ * @typedef {Object} RectangleDescription
+ * @extends {SVGDescription}
+ * @property {"rect"} type - The type of element
+ * @property {number} x - The x coordinate of the top left corner
+ * @property {number} y - The y coordinate of the top left corner
+ * @property {number} width - The width of the rectangle
+ * @property {number} height - The height of the rectangle
+ * @property {number} rx - The x radius of the rectangle
+ * @property {number} ry - The y radius of the rectangle
+ * 
+ * @typedef {Object} LineDescription
+ * @extends {SVGDescription}
+ * @property {"line"} type - The type of element
+ * @property {number} x1 - The x coordinate of the start of the line
+ * @property {number} y1 - The y coordinate of the start of the line
+ * @property {number} x2 - The x coordinate of the end of the line
+ * @property {number} y2 - The y coordinate of the end of the line
+ * 
+ * The X and Y coordinates of points for Polygons and Polylines
+ * @typedef {Array<[Number, Number]>} PolyPoint
+ * 
+ * @typedef {Object} PolygonDescription
+ * @extends {SVGDescription}
+ * @property {"polygon"} type - The type of element
+ * @property {PolyPoint[]} points - The points of the polygon
+ * 
+ * @typedef {Object} PolylineDescription
+ * @extends {SVGDescription}
+ * @property {"polyline"} type - The type of element
+ * @property {PolyPoint[]} points - The points of the polyline
+ * 
+ * @typedef {Object} PathSegment
+ * @property {string} type - The type of segment
+ * @property {boolean} relative - Whether the segment uses relative coordinates
+ * 
+ * @typedef {Object} MoveSegment
+ * @extends {PathSegment}
+ * @property {"move"} type - The type of segment
+ * @property {number} x - The x coordinate of the point
+ * @property {number} y - The y coordinate of the point
+ * 
+ * @typedef {Object} LineSegment
+ * @extends {PathSegment}
+ * @property {"line"} type - The type of segment
+ * @property {number} x - The x coordinate of the point
+ * @property {number} y - The y coordinate of the point
+ * 
+ * @typedef {Object} HorizontalSegment
+ * @extends {PathSegment}
+ * @property {"horizontal"} type - The type of segment
+ * @property {number} x - The x coordinate of the point
+ * 
+ * @typedef {Object} VerticalSegment
+ * @extends {PathSegment}
+ * @property {"vertical"} type - The type of segment
+ * @property {number} y - The y coordinate of the point
+ *
+ * @typedef {Object} CloseSegment
+ * @extends {PathSegment}
+ * @property {"close"} type - The type of segment
+ * 
+ * @typedef {Object} ShortCubicSegment
+ * @extends {PathSegment}
+ * @property {"shortcubic"} type - The type of segment
+ * @property {number} x2 - The x coordinate of the second control point
+ * @property {number} y2 - The y coordinate of the second control point
+ * @property {number} x - The x coordinate of the end point
+ * @property {number} y - The y coordinate of the end point
+ * 
+ * @typedef {Object} CubicSegment
+ * @extends {ShortCubicSegment}
+ * @property {"cubic"} type - The type of segment
+ * @property {number} x1 - The x coordinate of the first control point
+ * @property {number} y1 - The y coordinate of the first control point
+ * 
+ * @typedef {Object} ShortQuadraticSegment
+ * @extends {PathSegment}
+ * @property {"shortquadratic"} type - The type of segment
+ * @property {number} x - The x coordinate of the end point
+ * @property {number} y - The y coordinate of the end point
+ * 
+ * @typedef {Object} QuadraticSegment
+ * @extends {ShortQuadraticSegment}
+ * @property {"quadratic"} type - The type of segment
+ * @property {number} x1 - The x coordinate of the first control point
+ * @property {number} y1 - The y coordinate of the first control point
+ * 
+ * @typedef {Object} ArcSegment
+ * @extends {PathSegment}
+ * @property {"arc"} type - The type of segment
+ * @property {number} rx - The x radius of the arc
+ * @property {number} ry - The y radius of the arc
+ * @property {number} x - The x coordinate of the end point
+ * @property {number} y - The y coordinate of the end point
+ * @property {number} xRotation - The x rotation of the arc
+ * @property {boolean} largeArcFlag - Whether the arc is large
+ * @property {boolean} sweepFlag - Whether the arc is clockwise
+ * 
+ * @typedef {Object} PathDescription
+ * @extends {SVGDescription}
+ * @property {"path"} type - The type of element
+ * @property {PathSegment[]} path- The segments of the path
+ * 
+ * Represents an update to the PSVG's state
+ * @typedef {Object} PSVGUpdate
+ * @property {"clear"|"error"|"equations"|"svg"} type - The type of update
+ * @property {any} info - Additional information
+ * 
+ * An error state for the ParametricSVG
+ * @typedef {Object} PSVGError
+ * @property {"equation" | "svg"} category - The category of error
+ * @property {string} name - The name of the error
+ * @property {any} info - Additional information
+ * 
+ * A callback to provide descriptors for the SVG
+ * @callback SVGCallback
+ * @returns {SVGDescription[]}- An array of SVGDescriptions used to create the SVG
+ * 
+ * A callback to update the PSVG's equations
+ * @callback EquationCallback
+ * @param {Variables} equations - The equations currently in use by the PSVG
+ * 
+ * Callback which is notified of updates
+ * @callback UpdateCallback
+ * @param {PSVGUpdate} update - The update
+ */
+
+/**
+ * 
+ */
 class ParametricSVG {
-    constructor(svgcontainer, equationcontainer){
-        this.svgcontainer = svgcontainer;
-        this.equationcontainer = equationcontainer;
-        /** @type {Variables} */
+    /**
+     * Constructs a new ParametricSVG instance
+     */
+    constructor(){
+        /**
+         * Functions to call in order to populate the SVG.
+         * These should be added via svgcallback.
+         * @type {SVGCallback[]}
+         */
+        this.svgcallbacks = [];
+        /**
+         * Functions to call in order to update the PSVG's available equations.
+         * These callbacks are called prior to the SVG being built.
+         * These should be added via equationcallback.
+         * @type {EquationCallback[]}
+         */
+        this.equationcallback = [];
+        /**
+         * The equations available to the PSVG to substitute when building
+         * the SVG. These are cleared during updateEquations (which occurs
+         * prior to updateSVG) and therefore should be added via
+         * equationcallback.
+         * @type {Variables}
+         */
         this.equations = {};
-        this.updatecallback = null;
+        /**
+         * An array of functions to notifify when an update is made
+         * to the PSVG's state. Callback functions should be added
+         * via addUpdateCallback.
+         * @type {UpdateCallback[]}
+         */
+        this.updatecallback = [];
+        /**
+         * An array of errors in the PSVG's state
+         * @type {PSVGError[]}
+         */
+        this.errors = [];
         this.svg = document.createElementNS(XMLNS, "svg");
         this.parser = new DOMParser();
-        this.errors = [];
-        this.errorcallback = this.setFeedback.bind(this);
     }
 
     clearAll(){
         this.svg.innerHTML = "";
-        this.svgcontainer.innerHTML = "";
-        this.equationcontainer.innerHTML = "";
-        this.errors = [];
-        this.equations = {};
+        if(this.updatecallback) this.updatecallback({
+            type: "clear",
+            info: "all"
+        })
         this.updateEquations();
     }
 
-    setErrorState(element, errorType){
-        let elementerrors = this.errors.filter(e => e[0] === element);
-        for(let [element, preverrorType] of elementerrors){
-            if(errorType == preverrorType) return;
-        }
-        this.errors.push([element, errorType]);
-        if(this.errorcallback) this.errorcallback(element, errorType);
+    addSVGCallback(callback){
+        this.svgcallbacks.push(callback);
+    }
+    removeSVGCallback(callback){
+        this.svgcallbacks = this.svgcallbacks.filter(c => c !== callback);
     }
 
+    addEquationCallback(callback){
+        this.equationcallback.push(callback);
+    }
+    removeEquationCallback(callback){
+        this.equationcallback = this.equationcallback.filter(c => c !== callback);
+    }
+
+    addUpdateCallback(callback){
+        this.updatecallback.push(callback);
+    }
+    removeUpdateCallback(callback){
+        this.updatecallback = this.updatecallback.filter(c => c !== callback);
+    }
+
+    /**
+     * Sets a new error state for the ParametricSVG instance
+     * @param {PSVGError} error - The error to set
+     */
+    setErrorState(error){
+        let e = this.errors.filter(e => e.name === error.name && e.category === error.category);
+        if(e.length) return;
+        this.errors.push(error);
+        for(let callback of this.updatecallback){
+            callback({type: "error", info: {action: "add", error}});
+        }
+    }
+
+    /**
+     * Returns whether or not the ParametricSVG instance has any errors
+     * @returns {boolean}
+     */
     getErrorState(){
         return Boolean(this.errors.length);
     }
 
-    clearErrorState(element, errorType){
-        if(errorType === undefined){
-            this.errors = this.errors.filter(e => e[0] !== element);
-        }else{
-            this.errors = this.errors.filter(e => e[0] !== element || e[1] !== errorType);
+    /**
+     * Clears an error based on the type and/or name
+     * @param {PSVGError} error 
+     */
+    clearErrorState(error){
+        let {category, name} = error;
+        if(category === undefined && name === undefined) return;
+        if(category !== undefined && name !== undefined){
+            this.errors = this.errors.filter(e => e.name !== name || e.category !== category);
+        }else if(category !== undefined){
+            this.errors = this.errors.filter(e => e.category !== category);
+        }else if(name !== undefined){
+            this.errors = this.errors.filter(e => e.name !== name);
         }
-        if(element === null) return;
-        element.classList.remove("error");
-        element.querySelector("#error")?.remove();
-    }
-
-    setFeedback(element, errorType){
-        if(element===null) return;
-        let button = document.createElement("span");
-        button.id = "error";
-        button.classList.add("button", "error");
-        button.ariaLabel = "Error";
-        if(errorType == "duplicatename"){
-            button.title = "Duplicate name";
-        }else if(errorType == "noname"){
-            button.title = "No name";
-        }else if(errorType == "syntaxerror"){
-            button.title = "Equation Syntax error";
-        }
-        element.querySelector(".controls").insertAdjacentElement("afterBegin", button);
-    }
-
-    setUpdateCallback(updatecallback){
-        this.updatecallback = updatecallback;
-        this.updateEquations();
+        for(let callback of this.updatecallback) callback({type:"clear", info: {error}});
     }
 
     updateEquations(){
         this.equations = {};
-        if(this.updatecallback){
-            this.updatecallback("equation",this.equations);
-        }
-        let elementLookup = {};
-        for(let equation of document.querySelectorAll("div.equation[data-type=equation]")){
-            if(equation.getAttribute("disabled")) continue;
-            let name = equation.querySelector("#name").value;
-            let equationstring = equation.querySelector("#equation").value;
-            if(equationstring.length && !name){
-                this.setErrorState(equation, "noname");
-                console.error(`Equation with no name`);
-                continue;
-            }
-            if(this.equations[name] !== undefined){
-                this.setErrorState(equation, "duplicatename");
-                console.error(`Equation with name ${name} already exists`);
-                continue;
-            }
-            this.equations[name] = equationstring;
-            elementLookup[name] = equation;
-            this.clearErrorState(equation);
-        }
-        for(let [name, equation] of Object.entries(this.equations)){
-            if(!equation) continue;
-            if(!name){
-                this.setErrorState(elementLookup[name], "noname");
-            }
-            try{
-                evaluateEquation(""+equation, this.equations);
-                if(elementLookup[name]) this.clearErrorState(elementLookup[name]);
-            }catch(e){
-                console.error(e);
-                if(elementLookup[name]) this.setErrorState(elementLookup[name], "syntaxerror");
-            }
-        }
+        for(let callback of this.updatecallback) callback({type: "clear", info:{equations: this.equations}});
+        for(let callback of this.equationcallback) callback(this.equations);
+        for(let callback of this.updatecallback) callback({type:"equations",info:{equations: this.equations}});
+        this.updateObjectEquations(this.equations);
+        for(let callback of this.updatecallback) callback({type:"equations",info:{equations: this.equations}});
         this.updateSVG();
     }
 
@@ -114,403 +279,198 @@ class ParametricSVG {
      */
     updateObjectEquations(obj){
         for(let [key, value] of Object.entries(obj)){
+            console.log("key", key, "value", value);
             try{
-                obj[key] = evaluateEquation(value, this.equations);
-            }catch(e){}
+                if(/^\d/.test(key)){
+                    console.log("error")
+                    this.setErrorState({category:"equation", name:key, info: {type:"numericname",error: new Error("Equation syntax error")}});
+                    continue;
+                }
+                obj[key] = evaluateEquation(value+"", this.equations);
+            }catch(e){
+                this.setErrorState({category:"equation", name:key, info: {type:"syntaxerror",error: e}});
+            }
         }
     }
 
     updateSVG(){
         this.svg.innerHTML = "";
-        if(this.updatecallback){
-            this.updatecallback("svg",this.svg);
+        for(let callback of this.updatecallback){
+            callback({type: "clear", info:{svg: this.svg}});
         }
-        if(this.getErrorState()) return;
 
-        for(let svgcomponent of this.svgcontainer.querySelectorAll("div.svgcomponent")){
-            let type = svgcomponent.dataset.type;
-            let element;
-            switch(type){
-                case "circle":
-                    element = this.parseCirle(svgcomponent);
-                    break;
-                case "ellipse":
-                    element = this.parseEllipse(svgcomponent);
-                    break;
-                case "line":
-                    element = this.parseLine(svgcomponent);
-                    break;
-                case "path":
-                    element = this.parsePath(svgcomponent);
-                    break;
-                case "polygon":
-                    element = this.parsePolygon(svgcomponent);
-                    break;
-                case "polyline":
-                    element = this.parsePolyline(svgcomponent);
-                    break;
-                case "rect":
-                    element = this.parseRectangle(svgcomponent);
-                    break;
-                default:
-                    console.error(`Invalid type ${type}`);
-                    break;
-            }
+        let objs = [];
+        for(let callback of this.svgcallbacks) objs.push(...callback());
+        console.log(this.equations)
+        for(let obj of objs){
+            let element = this.parseJSON(obj);
             if(element){
                 // console.log(element);
                 this.svg.append(element);
             }
         }
-    }
-
-    async addSVG(type, container){
-        if(!["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"].includes(type)) throw new Error(`Invalid type ${type}`);
-        let component = await fetch(`src/elements/svgcomponent.html`);
-        let comp = await component.text();
-        let doc = this.parser.parseFromString(comp, "text/html");
-        let elem = doc.querySelector("div.svgcomponent");
-
-        component = await fetch(`src/elements/${type}.html`);
-        comp = await component.text();
-        doc = this.parser.parseFromString(comp, "text/html");
-        let content = doc.querySelector("div");
-        elem.dataset.type=type;
-        elem.querySelector("#name").textContent = type.toUpperCase();
-        elem.querySelector("#content").append(content);
-
-        this.setupSVGElement(type, elem);
-        container = container || this.svgcontainer;
-        container.append(elem);
-        return elem;
-    }
-    
-    setupSVGElement(type, elem){
-        elem.setAttribute("data-type", type);
-        if(type == "path"){
-            let span = document.createElement("span");
-            span.id = "addCommand";
-            span.classList.add("button", "addCommand");
-            span.ariaLabel = "Add Path Command";
-            span.title = "Add Path Command";
-            elem.querySelector(".controls").insertAdjacentElement("afterBegin", span);
-            span.addEventListener("click", e=> this.addSVGCommand("path", elem) );
-        }else if(type == "polygon" || type == "polyline"){
-            let span = document.createElement("span");
-            span.id = "addPoint";
-            span.classList.add("button", "addCommand");
-            span.ariaLabel = "Add Point";
-            span.title = "Add Point";
-            elem.querySelector(".controls").insertAdjacentElement("afterBegin", span);
-            span.addEventListener("click", e=> this.addSVGCommand(type, elem) );
+        
+        for(let callback of this.updatecallback){
+            callback({type: "svg", info:{svg: this.svg}});
         }
-        elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.updateSVG();});
-        elem.querySelector("#addAttribute").addEventListener("click", this.addSVGAttribute.bind(this) );
-        for(let input of elem.querySelectorAll("input")){
-            ParametricSVG.setValueReset(input, this.updateSVG.bind(this));
-        }
-        elem.querySelector("hr").addEventListener("click", e=> e.target.classList.toggle("show"))
-    }
-    
-    async addEquation(container){
-        let result = await fetch(`src/elements/equation.html`);
-        let ele = await result.text();
-        let doc = this.parser.parseFromString(ele, "text/html");
-        let elem = doc.querySelector("div.equation");
-        this.setupEquation(elem);
-        container = container || this.equationcontainer;
-        container.append(elem);
-        elem.querySelector("#name").focus();
-        return elem;
     }
 
-    setupEquation(elem){
-        elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.updateEquations();});
-        for(let inputele of [elem.querySelector("#name"), elem.querySelector("#equation")]){
-            ParametricSVG.setValueReset(inputele, this.updateEquations.bind(this));
-        }
-        elem.querySelector("#equation").addEventListener("keyup", e=>{
-            if(e.key == "Enter"){
-                this.updateEquations();
-                this.addEquation();
-            }
-        });
-        elem.querySelector("#disable").addEventListener("change", e=> {
-            let parent = e.target.parentElement;
-            while(parent.dataset.type !== "equation" && parent.parentElement){
-                parent = parent.parentElement;
-            }
-            if(parent.dataset.type !== "equation"){
-                throw new Error(`Could not find parent equation element: ${e.target}`);
-            }
-            let name = parent.querySelector("#name");
-            let equation = parent.querySelector("#equation");
-            if(e.target.checked){
-                name.setAttribute("disabled", true);
-                parent.setAttribute("disabled", true);
-                equation.setAttribute("disabled", true);
-            } else {
-                name.removeAttribute("disabled");
-                parent.removeAttribute("disabled");
-                equation.removeAttribute("disabled");
-            }
-            this.updateEquations();
-        });
-    }
-
-    async addSVGAttribute(e){
-        let parent = e.target.parentElement;
-        while(!parent.classList.contains("svgcomponent") && parent.parentElement){
-            parent = parent.parentElement;
-        }
-        if(!parent.classList.contains("svgcomponent")){
-            throw new Error(`Could not find parent SVG element: ${e.target.outerHTML}`);
-        }
-        let attribute = await fetch(`src/elements/attribute.html`);
-        let ele = await attribute.text();
-        let doc = this.parser.parseFromString(ele, "text/html");
-        let elem = doc.querySelector("div.attribute");
-        let nameinput = elem.querySelector("#attributename");
-        let input = elem.querySelector("#attributevalue");
-        ParametricSVG.setValueReset(nameinput, this.updateSVG.bind(this));
-        ParametricSVG.setValueReset(input, this.updateSVG.bind(this));
-        elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.updateSVG();});
-        parent.querySelector("#attributes").append(elem);
-        nameinput.focus();
-        let hr = parent.querySelector("hr");
-        if(!hr.classList.contains("show")) hr.click();
-        return elem;
-    }
-
-    async addSVGCommand(type, elem){
-        let container, point;
-        if(type == "path"){
-            container = elem.querySelector("#path");
-            let resp = await fetch(`src/elements/pathpoints.html`);
-            let ele = await resp.text();
-            let doc = this.parser.parseFromString(ele, "text/html");
-            point = doc.querySelector("div.point");
-            container.append(point);
-            ParametricSVG.setupPathPoints(point, this.updateSVG.bind(this));
+    parseJSON(obj){
+        let element = null;
+        if(obj.type === "circle"){
+            element = this.parseCirle(obj);
+        }else if(obj.type === "line"){
+            element = this.parseLine(obj);
+        }else if(obj.type === "ellipse"){
+            element = this.parseEllipse(obj);
+        }else if(obj.type === "rect"){
+            element = this.parseRectangle(obj);
+        }else if(obj.type === "polygon"){
+            element = this.parsePolygon(obj);
+        }else if(obj.type === "polyline"){
+            element = this.parsePolyline(obj);
+        }else if(obj.type === "path"){
+            element = this.parsePath(obj);
         }else{
-            container = elem.querySelector("#points");
-            let resp = await fetch(`src/elements/polypoints.html`);
-            let ele = await resp.text();
-            let doc = this.parser.parseFromString(ele, "text/html");
-            point = doc.querySelector("div.point");
-            container.append(point);
-            ParametricSVG.setValueReset(point.querySelector("#x"), this.updateSVG.bind(this));
-            ParametricSVG.setValueReset(point.querySelector("#y"), this.updateSVG.bind(this));
+            throw new Error(`Invalid type ${obj.type}`);
         }
-
-        point.querySelector("#remove").addEventListener("click", e => {container.remove(); this.updateSVG();});
-
-        let hr = elem.querySelector("hr");
-        if(!hr.classList.contains("show")) hr.click();
-        return point;
-    }
-
-    static handleInputKeyPress(e){
-        if(e.key == "Enter"){
-            e.preventDefault();
-            e.stopPropagation();
-            e.target.blur();
-            return false;
-        }
-        if(e.key == "Escape"){
-            e.preventDefault();
-            e.stopPropagation();
-            e.target.value = e.target.dataset.originalvalue;
-            delete e.target.dataset.originalvalue;
-            e.target.blur();
-            return false;
-        }
-    }
-
-
-    static setValueReset(input, valueChangeHandler){
-        input.addEventListener("keyup", ParametricSVG.handleInputKeyPress)
-        input.addEventListener("focus", e=> {e.target.dataset.originalvalue = e.target.value});
-        input.addEventListener("blur", e=> {delete e.target.dataset.originalvalue; valueChangeHandler();});
-    }
-
-    static setupPathPoints(point, valueChangeHandler){
-        for(let selector of [
-            "#default #x", "#default #y",
-            "#cubic #x1", "#cubic #y1", "#cubic #x2", "#cubic #y2", "#cubic #x", "#cubic #y",
-            "#quadratic #x1", "#quadratic #y1", "#quadratic #x", "#quadratic #y",
-            "#arc #rx", "#arc #ry", "#arc #x", "#arc #y", "#arc #xRotation", "#arc #largeArcFlag", "#arc #sweepFlag",
-        ]){
-            ParametricSVG.setValueReset(point.querySelector(selector), valueChangeHandler);
-        }
-        function updateSelection(){
-            for(let container of point.querySelectorAll(".args")){
-                container.style.display = "none";
-            }
-            for(let label of point.querySelectorAll("label:has(input.coordinate)")){
-                label.querySelector("input.coordinate").value = 0;
-                label.style.display = "revert-layer";
-            }
-            point.querySelector("label:has(#relative)").style.display = "revert-layer";
-            for(let input of point.querySelectorAll("input[type=checkbox]")){
-                input.checked = false;                
-            }
-            let selection = point.querySelector(`#type`).value;
-            switch(selection){
-                case "close":
-                    break;
-                case "move":
-                case "line":
-                case "horizontal":
-                case "vertical":
-                    point.querySelector(`#default`).style.display = "revert-layer";
-                    break;
-                case "cubic":
-                case "shortcubic":
-                    point.querySelector("#cubic").style.display = "revert-layer";
-                    break;
-                case "quadratic":
-                case "shortquadratic":
-                    point.querySelector("#quadratic").style.display = "revert-layer";
-                    break;
-                case "arc":
-                    point.querySelector("#arc").style.display = "revert-layer";
-                    break;                    
-                default:
-                    point.querySelector(`#${selection}`).style.display = "revert-layer";
-                    break;
-            }
-            let child;
-            switch(selection){
-                case "close":
-                    point.querySelector("label:has(#relative)").style.display = "none";
-                    break;
-                case "horizontal":
-                    point.querySelector("#default label:has(#y)").style.display = "none";
-                    break;
-                case "vertical":
-                    point.querySelector("#default label:has(#x)").style.display = "none";
-                    break;
-                case "shortcubic":
-                    child = point.querySelector("#cubic");
-                    child.querySelector("label:has(#x1)").style.display = "none";
-                    child.querySelector("label:has(#y1)").style.display = "none";
-                    break;
-                case "shortquadratic":
-                    child = point.querySelector("#quadratic")
-                    child.querySelector("label:has(#x1)").style.display = "none";
-                    child.querySelector("label:has(#y1)").style.display = "none";
-                    break;
-                default:
-                    break;
-            }
-            valueChangeHandler();
-        }
-        point.querySelector("#type").addEventListener("change", updateSelection);
-        updateSelection();
+        return element;
     }
 
     /**
-     * Returns the attributes of an SVG builder Element
-     * @param {Element} element 
-     * @returns {Object[string, string]}}
+     * Updates the provided attributes via updateObjectEquation and sets the attributes of an SVG Element.
+     * @param {Element} element - The Element to set the attributes on
+     * @param {Object<string, string>} attributes - The attributes to update and set
      */
-    parseAttributes(element){
-        let attributes = {};
-        for(let attr of element.querySelectorAll(".attribute")){
-            attributes[attr.querySelector("#attributename").value] = attr.querySelector("#attributevalue").value;
+    setComponentAttributes(element, attributes){
+        for(let [attr, val] of Object.entries(attributes)){
+            if(val){
+                try{
+                    val = evaluateEquation(val, this.equations);
+                }catch(e){
+                    continue;
+                }
+            }
+            if(val === undefined || val === null || val === "") continue;
+            try{
+                element.setAttributeNS(null, attr, val);
+            }catch(e){
+                console.log(e);
+            }
         }
-        return attributes;
     }
 
-    parseCirle(element){
-        let attributes = this.parseAttributes(element);
-        attributes.cx =element.querySelector("#cx").value;
-        attributes.cy =element.querySelector("#cy").value;
-        attributes.r =element.querySelector("#r").value;
-        this.updateObjectEquations(attributes);
+    /**
+     * Parses a CircleDescription into an SVG Circle
+     * @param {CircleDescription} component - The Circle Description
+     * @returns {Element}- The SVG Circle Component
+     */
+    parseCirle(component){
+        let attributes = {...component.attributes};
+        attributes.cx = component.cx;
+        attributes.cy = component.cy;
+        attributes.r = component.r;
         let svg = document.createElementNS(XMLNS, "circle");
-        for(let [attr, val] of Object.entries(attributes)){
-            svg.setAttributeNS(null, attr, val);
-        }
+        this.setComponentAttributes(svg, attributes);
         return svg;
     }
 
-    parseLine(element){
-        let attributes = this.parseAttributes(element);
-        attributes.x1 =element.querySelector("#x1").value;
-        attributes.y1 =element.querySelector("#y1").value;
-        attributes.x2 =element.querySelector("#x2").value;
-        attributes.y2 =element.querySelector("#y2").value;
-        this.updateObjectEquations(attributes);
+    /**
+     * Parses an EllipseDescription into an SVG Ellipse
+     * @param {EllipseDescription} component - The Ellipse Description
+     * @returns {Element}- The SVG Ellipse Component
+     */
+    parseEllipse(component){
+        let attributes = {...component.attributes};
+        attributes.cx = component.cx;
+        attributes.cy = component.cy;
+        attributes.rx = component.rx;
+        attributes.ry = component.ry;
+        
+        let svg = document.createElementNS(XMLNS,"ellipse");
+        this.setComponentAttributes(svg, component);
+        return svg;
+    }
+
+    /**
+     * Parses a LineDescription into an SVG Line
+     * @param {LineDescription} component - The Line Description
+     * @returns {Element}- The SVG Line Component
+     */
+    parseLine(component){
+        let attributes = {...component.attributes};
+        attributes.x1 = component.x1;
+        attributes.y1 = component.y1;
+        attributes.x2 = component.x2;
+        attributes.y2 = component.y2;
         let svg = document.createElementNS(XMLNS, "line");
-        for(let [attr, val] of Object.entries(attributes)){
-            svg.setAttributeNS(null, attr, val);
-        }
+        this.setComponentAttributes(svg, component);
         return svg;
     }
 
-    parseRectangle(element){
-        let attributes = this.parseAttributes(element);
-        attributes.x =element.querySelector("#x").value;
-        attributes.y =element.querySelector("#y").value;
-        attributes.width =element.querySelector("#width").value;
-        attributes.height =element.querySelector("#height").value;
-        attributes.rx =element.querySelector("#rx").value;
-        attributes.ry =element.querySelector("#ry").value;
-        this.updateObjectEquations(attributes);
+    /**
+     * Parses a RectangleDescription into an SVG Rectangle
+     * @param {RectangleDescription} component - The Rectangle Description
+     * @returns {Element}- The SVG Rectangle Component
+     */
+    parseRectangle(component){
+        let attributes = {...component.attributes};
+        attributes.x = component.x;
+        attributes.y = component.y;
+        attributes.width = component.width;
+        attributes.height = component.height;
+        attributes.rx = component.rx;
+        attributes.ry = component.ry;
         let svg = document.createElementNS(XMLNS, "rect");
-        for(let [attr, val] of Object.entries(attributes)){
-            svg.setAttributeNS(null, attr, val);
-        }
+        this.setComponentAttributes(svg, component);
         return svg;
     }
 
-    parsePolygon(element){
-        let attributes = this.parseAttributes(element);
+    /**
+     * Parses a PolygonDescription into an SVG Polygon
+     * @param {PolygonDescription} component - The Polygon Description
+     * @returns {Element}- The SVG Polygon Component 
+     */
+    parsePolygon(component){
+        let attributes = {...component.attributes};
         attributes.points = "";
-        for(let point of element.querySelectorAll(".point")){
-            attributes.points += `${evaluateEquation(point.querySelector("#x").value, this.equations)},${evaluateEquation(point.querySelector("#y").value, this.equations)} `;
+        for(let [x,y] of component.points){
+            attributes.points += `${evaluateEquation(x, this.equations)},${evaluateEquation(y, this.equations)} `;
         }
         let svg = document.createElementNS(XMLNS, "polygon");
-        for(let [attr, val] of Object.entries(attributes)){
-            svg.setAttributeNS(null, attr, val);
-        }
+        this.setComponentAttributes(svg, component);
         return svg;
     }
 
-    parsePolyline(element){
-        let attributes = this.parseAttributes(element);
+    /**
+     * Parses a PolylineDescription into an SVG Polyline
+     * @param {PolylineDescription} component - The Polyline Description
+     * @returns {Element}- The SVG Polyline Component
+     */
+    parsePolyline(component){
+        let attributes = {...component.attributes};
         attributes.points = "";
-        for(let point of element.querySelectorAll(".point")){
-            attributes.points += `${evaluateEquation(point.querySelector("#x").value, this.equations)},${evaluateEquation(point.querySelector("#y").value, this.equations)} `;
+        for(let [x,y] of component.points){
+            attributes.points += `${evaluateEquation(x, this.equations)},${evaluateEquation(y, this.equations)} `;
         }
         let svg = document.createElementNS(XMLNS, "polyline");
-        for(let [attr, val] of Object.entries(attributes)){
-            svg.setAttributeNS(null, attr, val);
-        }
+        this.setComponentAttributes(svg, component);
         return svg;
     }
 
-    parseEllipse(element){
-        let attributes = this.parseAttributes(element);
-        attributes.cx =element.querySelector("#cx").value;
-        attributes.cy =element.querySelector("#cy").value;
-        attributes.rx =element.querySelector("#rx").value;
-        attributes.ry =element.querySelector("#ry").value;
-        this.updateObjectEquations(attributes);
-        let svg = document.createElementNS(XMLNS,"ellipse");
-        for(let [attr, val] of Object.entries(attributes)){
-            svg.setAttributeNS(null,attr, val);
-        }
-        return svg;
-    }
+    /**
+     * Parses a PathDescription into an SVG Path
+     * @param {PathDescription} component - The Path Description
+     * @returns {Element}- The SVG Path Component
+     */
+    parsePath(component){
 
-    parsePath(element){
-        function parseDefault(type, point){
+        /**
+         * @param {CloseSegment|MoveSegment|LineSegment|HorizontalSegment|VerticalSegment} param0
+         * @returns {string}- The path segment string
+         */
+        function parseDefault({type, x, y}){
             if(type == "close") return "Z";
-            let ele = point.querySelector("#default");
-            let x = evaluateEquation(ele.querySelector("#x").value, this.equations);
-            let y = evaluateEquation(ele.querySelector("#y").value, this.equations);
             if(type == "move"){
                 return `M${x} ${y}`;
             }else if(type == "line"){
@@ -522,14 +482,12 @@ class ParametricSVG {
             }
             throw new Error(`Unkown type: ${type}`);
         }
-        function parseCubic(type, point){
-            let ele = point.querySelector("#cubic");
-            let x1 = evaluateEquation(ele.querySelector("#x1").value, this.equations);
-            let y1 = evaluateEquation(ele.querySelector("#y1").value, this.equations);
-            let x2 = evaluateEquation(ele.querySelector("#x2").value, this.equations);
-            let y2 = evaluateEquation(ele.querySelector("#y2").value, this.equations);
-            let x = evaluateEquation(ele.querySelector("#x").value, this.equations);
-            let y = evaluateEquation(ele.querySelector("#y").value, this.equations);
+
+        /**
+         * @param {CubicSegment|ShortCubicSegment} param0 
+         * @returns {string}- The path segment string
+         */
+        function parseCubic({type, x1, y1, x2, y2, x, y}){
             if(type == "cubic"){
                 return `C${x1} ${y1},${x2} ${y2},${x} ${y}`;
             }else if (type == "shortcubic"){
@@ -537,12 +495,11 @@ class ParametricSVG {
             }
             throw new Error(`Unkown type: ${type}`);
         }
-        function parseQuadratic(type, point){
-            let ele = point.querySelector("#quadratic");
-            let x1 = evaluateEquation(ele.querySelector("#x1").value, this.equations);
-            let y1 = evaluateEquation(ele.querySelector("#y1").value, this.equations);
-            let x = evaluateEquation(ele.querySelector("#x").value, this.equations);
-            let y = evaluateEquation(ele.querySelector("#y").value, this.equations);
+        /**
+         * @param {QuadraticSegment|ShortQuadraticSegment} param0
+         * @returns {string}- The path segment string
+         */
+        function parseQuadratic({type, x1, y1, x, y}){
             if(type == "quadratic"){
                 return `Q${x1} ${y1},${x} ${y}`;
             }else if (type == "shortquadratic"){
@@ -551,27 +508,23 @@ class ParametricSVG {
             throw new Error(`Unkown type: ${type}`);
             
         }
-        function parseArc(type, point){
-            let ele = point.querySelector("#arc");
-            let x = evaluateEquation(ele.querySelector("#x").value, this.equations);
-            let y = evaluateEquation(ele.querySelector("#y").value, this.equations);
-            let rx = evaluateEquation(ele.querySelector("#rx").value, this.equations);
-            let ry = evaluateEquation(ele.querySelector("#ry").value, this.equations);
-            let xrotation = evaluateEquation(ele.querySelector("#xRotation").value, this.equations);
-            let largeArcFlag = ele.querySelector("#largeArcFlag").checked;
-            let sweepFlag = ele.querySelector("#sweepFlag").checked;
+        /**
+         * @param {ArcSegment} param0 
+         * @returns {string}- The path segment string
+         */
+        function parseArc({type, x, y, rx, ry, xRotation, largeArcFlag, sweepFlag}){
             if(type == "arc"){
-                return `A${rx} ${ry},${xrotation},${largeArcFlag},${sweepFlag}, ${x} ${y}`;
+                return `A${rx} ${ry},${xRotation},${largeArcFlag},${sweepFlag}, ${x} ${y}`;
             }
             throw new Error(`Unkown type: ${type}`);
         }
 
-        let attributes = this.parseAttributes(element);
+        let attributes = {...component.attributes};
         attributes.d = "";
-        for(let point of element.querySelectorAll(".point")){
+        for(let segment of component.path){
+            /** @type {function} */
             let callback;
-            let type = point.querySelector("#type").value;
-            switch(type){
+            switch(segment.type){
                 case "move":
                 case "line":
                 case "horizontal":
@@ -592,315 +545,15 @@ class ParametricSVG {
                 default:
                     throw new Error("Unknown path command");
             }
-            let relative = point.querySelector("#relative").checked;
-            let pointval = callback(type, point);
-            if(relative){
+            let pointval = callback(segment);
+            if(segment.relative){
                 pointval = pointval.toLowerCase();
             }
             d+=pointval;
         }
 
         let svg = document.createElementNS(XMLNS, "path");
-        for(let [attr, val] of Object.entries(attributes)){
-            svg.setAttributeNS(null,attr, val);
-        }
+        this.setComponentAttributes(svg, component);
         return svg;
-    }
-
-    /**
-     * Serializes the current state of the ParametricSVG
-     * @returns {Object} - A Serialized version of the ParametricSVG state
-     */
-    serialize(){
-        return {equations: this.serializeEquations(), svgcomponents: this.serializeSVG(), viewBox: this.svg.getAttribute("viewBox")};
-    }
-
-    /**
-     * Serializes the current state of the Equations
-     * @returns {Object} - A Serialized version of the Equations
-     */
-    serializeEquations(){
-        let out = {};
-        for(let equation of this.equationcontainer.querySelectorAll(".equation")){
-            let name = equation.querySelector("#name").value;
-            let value = equation.querySelector("#equation").value;
-            out[name] = value;
-        }
-        return out;
-    }
-
-    /**
-     * Serializes the current state of the SVG
-     * @returns {Object[]} - An array of Serialized SVG components
-     */
-    serializeSVG(){
-        let out = [];
-        for(let element of this.svgcontainer.querySelectorAll(".svgcomponent")){
-            let type = element.dataset.type;
-            switch(type){
-                case "circle":
-                    out.push(this.serializeCircle(element));
-                    break;
-                case "ellipse":
-                    out.push(this.serializeEllipse(element));
-                    break;
-                case "rect":
-                    out.push(this.serializeRect(element));
-                    break;
-                case "line":
-                    out.push(this.serializeLine(element));
-                    break;
-                case "path":
-                    out.push(this.serializePath(element));
-                    break;
-                case "polygon":
-                    out.push(this.serializePolygon(element));
-                    break;
-                case "polyline":
-                    out.push(this.serializePolyline(element));
-                    break;
-            }
-        }
-        return out;
-    }
-    serializeAttributes(element){
-        let out = {}
-        for(let attribute of element.querySelectorAll(".attribute")){
-            let name = attribute.querySelector("#attributename").value;
-            let value = attribute.querySelector("#attributevalue").value;
-            if(!value) continue;
-            out[name] = value;
-        }
-        return out;
-    }
-    serializeCircle(element){
-        let out = {type: "circle"};
-        out.attributes = this.serializeAttributes(element);
-        out.cx = element.querySelector("#cx").value;
-        out.cy = element.querySelector("#cy").value;
-        out.r = element.querySelector("#r").value;
-        return out;
-    }
-    serializeEllipse(element){
-        let out  = {type: "ellipse"};
-        out.attributes = this.serializeAttributes(element);
-        out.cx = element.querySelector("#cx").value;
-        out.cy = element.querySelector("#cy").value;
-        out.rx = element.querySelector("#rx").value;
-        out.ry = element.querySelector("#ry").value;
-        return out;
-    }
-    serializeRect(element){
-        let out = {type: "rect"};
-        out.attributes = this.serializeAttributes(element);
-        out.x = element.querySelector("#x").value;
-        out.y = element.querySelector("#y").value;
-        out.width = element.querySelector("#width").value;
-        out.height = element.querySelector("#height").value;
-        out.rx = element.querySelector("#rx").value;
-        out.ry = element.querySelector("#ry").value;
-        return out;
-    }
-    serializeLine(element){
-        let out = {type: "line"};
-        out.attributes = this.serializeAttributes(element);
-        out.x1 = element.querySelector("#x1").value;
-        out.y1 = element.querySelector("#y1").value;
-        out.x2 = element.querySelector("#x2").value;
-        out.y2 = element.querySelector("#y2").value;
-        return out;
-    }
-    serializePolygon(element){
-        let out = {type: "polygon"};
-        out.attributes = this.serializeAttributes(element);
-        out.points = [];
-        for(let point of element.querySelectorAll(".point")){
-            out.points.push([
-                point.querySelector("#x").value,
-                point.querySelector("#y").value]);
-            }
-            return out;
-    }
-    serializePolyline(element){
-        let out = {type: "polyline"};
-        out.attributes = this.serializeAttributes(element);
-        out.points = [];
-        for(let point of element.querySelectorAll(".point")){
-            out.points.push([
-                point.querySelector("#x").value,
-                point.querySelector("#y").value]);
-            }
-        return out;
-    }
-    serializePath(element){
-        let out = {type: "path"};
-        out.attributes = this.serializeAttributes(element);
-        out.path = [];
-        for(let point of element.querySelectorAll(".point")){
-            let type = point.querySelector("#type").value;
-            if(type == "close"){
-                out.path.push({type});
-                continue;
-            }
-            let relative = point.querySelector("#relative").checked;
-            if(type == "move"){
-                out.path.push({
-                    type,
-                    relative,
-                    x: point.querySelector("#default #x").value,
-                    y: point.querySelector("#default #y").value
-                });
-            }else if(type == "line"){
-                out.path.push({
-                    type,
-                    relative,
-                    x: point.querySelector("#default #x").value,
-                    y: point.querySelector("#default #y").value
-                });
-            }
-            else if(type == "horizontal"){
-                out.path.push({
-                    type,
-                    relative,
-                    x: point.querySelector("#default #x").value
-                });
-            } else if(type == "vertical"){
-                out.path.push({
-                    type,
-                    relative,
-                    y: point.querySelector("#default #y").value
-                });
-            } else if(type == "cubic" || type == "shortcubic"){
-                let ele = {
-                    type,
-                    relative,
-                    x2: point.querySelector("#cubic #x2").value,
-                    y2: point.querySelector("#cubic #y2").value,
-                    x: point.querySelector("#cubic #x").value,
-                    y: point.querySelector("#cubic #y").value
-                };
-                if (type == "cubic"){
-                    ele.x1 = point.querySelector("#cubic #x1").value;
-                    ele.y1 = point.querySelector("#cubic #y1").value;
-                }
-                out.path.push(ele);
-            } else if (type == "quadratic" || type == "shortquadratic"){
-                let ele = {
-                    type,
-                    relative,
-                    x: point.querySelector("#quadratic #x").value,
-                    y: point.querySelector("#quadratic #y").value
-                };
-                if (type == "quadratic"){
-                    ele.x1 = point.querySelector("#quadratic #x1").value;
-                    ele.y1 = point.querySelector("#quadratic #y1").value;
-                }
-                out.path.push(ele);
-            } else if (type == "arc"){
-                out.path.push({
-                    type,
-                    relative,
-                    rx: point.querySelector("#arc #rx").value,
-                    ry: point.querySelector("#arc #ry").value,
-                    x: point.querySelector("#arc #x").value,
-                    y: point.querySelector("#arc #y").value,
-                    xRotation: point.querySelector("#arc #xRotation").value,
-                    largeArcFlag: point.querySelector("#arc #largeArcFlag").checked,
-                    sweepFlag: point.querySelector("#arc #sweepFlag").checked
-                });
-            }
-        }
-        return out;
-    }
-
-    async loadFromJSON(json){
-        this.clearAll();
-        this.setErrorState(null,"Loading");
-        this.svg.setAttribute("viewBox", json.viewBox);
-        for(let [name, equation] of Object.entries(json.equations)){
-            let element = await this.addEquation();
-            element.querySelector("#name").value = name;
-            element.querySelector("#equation").value = equation;
-        }
-        for(let svgcomponent of json.svgcomponents){
-            let element = await this.addSVG(svgcomponent.type);
-            if(svgcomponent.type == "circle"){
-                element.querySelector("#cx").value = svgcomponent.cx;
-                element.querySelector("#cy").value = svgcomponent.cy;
-                element.querySelector("#r").value = svgcomponent.r;
-            } else if(svgcomponent.type == "ellipse"){
-                element.querySelector("#cx").value = svgcomponent.cx;
-                element.querySelector("#cy").value = svgcomponent.cy;
-                element.querySelector("#rx").value = svgcomponent.rx;
-                element.querySelector("#ry").value = svgcomponent.ry;
-            } else if(svgcomponent.type == "line"){
-                element.querySelector("#x1").value = svgcomponent.x1;
-                element.querySelector("#y1").value = svgcomponent.y1;
-                element.querySelector("#x2").value = svgcomponent.x2;
-                element.querySelector("#y2").value = svgcomponent.y2;
-            } else if(svgcomponent.type == "rect"){
-                element.querySelector("#x").value = svgcomponent.x;
-                element.querySelector("#y").value = svgcomponent.y;
-                element.querySelector("#width").value = svgcomponent.width;
-                element.querySelector("#height").value = svgcomponent.height;
-                element.querySelector("#rx").value = svgcomponent.rx;
-                element.querySelector("#ry").value = svgcomponent.ry;
-            } else if(svgcomponent.type == "polygon" || svgcomponent.type == "polyline"){
-                for(let point of svgcomponent.points){
-                    let pointElement = await this.addSVGCommand(svgcomponent.type, element);
-                    pointElement.querySelector("#x").value = point.x;
-                    pointElement.querySelector("#y").value = point.y;
-                }
-            } else if(svgcomponent.type == "path"){
-                for(let point of svgcomponent.points){
-                    let pointElement = await this.addSVGCommand(svgcomponent.type, element);
-                    pointElement.querySelector("#type").value = point.type;
-                    pointElement.querySelector("#relative").checked = point.relative;
-                    if(point.type == "close") continue;
-                    if(point.type == "horizontal"){
-                        pointElement.querySelector("#default #x").value = point.x;
-                    } else if(point.type == "vertical"){
-                        pointElement.querySelector("#default #y").value = point.y;
-                    } else if(point.type =="move" || point.type == "line" || point.type == "cubic" || point.type == "shortcubic" || point.type == "quadratic" || point.type == "shortquadratic" || point.type == "arc"){
-                        pointElement.querySelector("#default #x").value = point.x;
-                        pointElement.querySelector("#default #y").value = point.y;
-                    }else if(point.type == "cubic" || point.type == "shortcubic"){
-                        pointElement.querySelector("#cubic #x2").value = point.x2;
-                        pointElement.querySelector("#cubic #y2").value = point.y2;
-                        pointElement.querySelector("#cubic #x").value = point.x;
-                        pointElement.querySelector("#cubic #y").value = point.y;
-                        if(point.type == "cubic"){
-                            pointElement.querySelector("#cubic #x1").value = point.x1;
-                            pointElement.querySelector("#cubic #y1").value = point.y1;
-                        }
-                    }else if(point.type == "quadratic" || point.type == "shortquadratic"){
-                        pointElement.querySelector("#quadratic #x").value = point.x;
-                        pointElement.querySelector("#quadratic #y").value = point.y;
-                        if(point.type == "quadratic"){
-                            pointElement.querySelector("#quadratic #x1").value = point.x1;
-                            pointElement.querySelector("#quadratic #y1").value = point.y1;
-                        }
-                    }else if(point.type == "arc"){
-                        pointElement.querySelector("#arc #rx").value = point.rx;
-                        pointElement.querySelector("#arc #ry").value = point.ry;
-                        pointElement.querySelector("#arc #x").value = point.x;
-                        pointElement.querySelector("#arc #y").value = point.y;
-                        pointElement.querySelector("#arc #xRotation").value = point.xRotation;
-                        pointElement.querySelector("#arc #largeArcFlag").checked = point.largeArcFlag;
-                        pointElement.querySelector("#arc #sweepFlag").checked = point.sweepFlag;
-                    } else{
-                        throw new Error(`Unknown SVG Path point type: ${point.type}`);
-                    }
-                }
-            }
-            for(let [name,value] of Object.entries(svgcomponent.attributes)){
-                let attr = await this.addSVGAttribute({target:element.querySelector("#attributes")});
-                attr.querySelector("#attributename").value = name;
-                attr.querySelector("#attributevalue").value = value;
-            }
-        }
-        this.clearErrorState(null, "Loading");
-        // NOTE- updateEquations also calls updateSVG
-        this.updateEquations();
     }
 }

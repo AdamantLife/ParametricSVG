@@ -19,7 +19,7 @@
  
 // Set to undefined to disable debugging,
 // otherwise should be an integer representing spacing per indent
-var DEBUGTAB = 0;
+var DEBUGTAB = undefined;
 function log(...args){
     if(typeof DEBUGTAB == "undefined") return;
     console.log(" ".repeat(DEBUGTAB*2), ...args);

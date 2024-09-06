@@ -117,8 +117,28 @@ div.component span#name{
 
 div[data-type="equation"] input:disabled{
     background-color: silver;
-    color:white
+    color:white;
 }
+
+#changeinput::after{
+    content:"Show Text Input";
+}
+
+#changeinput.showinput::after{
+    content:"Show Widgets";
+}
+
+#changeinput~#equationtext{
+    display: none;
+}
+
+    #changeinput.showinput~#equationwidgets{
+        display: none;
+    }
+
+    #changeinput.showinput~#equationtext{
+        display: block;
+    }
 
 input#name{
     width: 5rem;
@@ -130,6 +150,11 @@ input#equation{
 
 input#name.error{
     background-color: lightcoral;
+}
+
+textarea{
+    min-height: 5rem;
+    min-width: 30rem;
 }
 
 div.svgcomponent{

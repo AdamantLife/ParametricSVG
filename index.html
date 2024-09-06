@@ -15,34 +15,18 @@
         </div>
         <div>
             <div style="display: inline-flex; margin: 0 auto;">
-                <div class="definitions">
-                    <label for="svg" style="display:block;text-align: center;">SVG</label>
-                    <div class="controls">
-                        <button id="addsvg">Add</button>
-                        <select id="svgtype">
-                            <option value="circle" default>Circle</option>
-                            <option value="ellipse">Ellipse</option>
-                            <option value="line">Line</option>
-                            <option value="path">Path</option>
-                            <option value="polygon">Polygon</option>
-                            <option value="polyline">Polyline</option>
-                            <option value="rect">Rectangle</option>
-                        </select>
-                    </div>
-                    <div id="svg" style="min-width: 20em;min-height: 20em;"></div>
+                <div id="svgwidgets" class="definitions">
                 </div>
-                <div class="definitions">
-                    <label for="equations" style="display:block;text-align: center;">Equations</label>
-                    <div class="controls">
-                        <button id="addequation">Add</button>
-                    </div>
-                    <div id="equations" style="min-width: 20em;min-height: 20em;"></div>
+                <div id="equationwidgets" class="definitions">
+                    
                 </div>
             </div>
         </div>
         <button id="load">Load From File</button>
         <script src="src/equations.js"></script>
         <script src="src/parametricsvg.js"></script>
+        <script src="src/svgwidgets.js"></script>
+        <script src="src/equationwidgets.js"></script>
         <script src="script.js"></script>
     </body>
 </html>

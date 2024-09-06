@@ -1,4 +1,6 @@
 var PSVG = new ParametricSVG(document.getElementById('svg'), document.getElementById('equations'));
+var SVGW = new SVGWidgets(PSVG, document.getElementById('svgwidgets'));
+var EQW = new EquationWidgets(PSVG, document.getElementById('equationwidgets'));
 
 const MIN = 50;
 let parent = document.getElementById('parent');
@@ -11,30 +13,34 @@ PSVG.svg.style.height = MIN + 'px';
 PSVG.svg.style.display = "block";
 document.getElementById("size").innerHTML = `viewBox: 0 0 ${MIN} ${MIN}`;
 
-function updateCallback(type, ...arguments){
-    if(type == "equation"){
-        equations = arguments[0];
-        let {width, height} = PSVG.svg.getBoundingClientRect();
-        equations["vbw"] = width;
-        equations["vbh"] = height;
-    }else if(type=="svg"){
-        let svg = arguments[0];
-        let {width, height} = svg.getBoundingClientRect();
-        let str = `0 0 ${width} ${height}`;
-        let viewBox = svg.getAttribute("viewBox")
-        if(viewBox != str){
-            let result = /\d+ \d+ (?<width>\d+) (?<height>\d+)/.exec(viewBox);
-            if(result){
-                width = result.groups.width;
-                height = result.groups.height;
-                svg.style.width = width+"px";
-                svg.style.height = height+"px";
-            }
-            document.getElementById("size").innerHTML = `viewBox: ${viewBox}`
+/** @param {Variables} */
+function equationCallback(equations){
+    let {width, height} = PSVG.svg.getBoundingClientRect();
+    console.log(width, height);
+    equations["vbw"] = width;
+    equations["vbh"] = height;
+}
+PSVG.addEquationCallback(equationCallback);
+
+/** @param {PSVGUpdate} */
+function updateCallback({type, info}){
+    if(type !== "svg") return;
+    let svg = info.svg;
+    let {width, height} = svg.getBoundingClientRect();
+    let str = `0 0 ${width} ${height}`;
+    let viewBox = svg.getAttribute("viewBox")
+    if(viewBox != str){
+        let result = /\d+ \d+ (?<width>\d+) (?<height>\d+)/.exec(viewBox);
+        if(result){
+            width = result.groups.width;
+            height = result.groups.height;
+            svg.style.width = width+"px";
+            svg.style.height = height+"px";
         }
+        document.getElementById("size").innerHTML = `viewBox: ${viewBox}`
     }
 }
-PSVG.setUpdateCallback(updateCallback);
+PSVG.addUpdateCallback(updateCallback);
 
 function resize(e){
     let {width, height} = PSVG.svg.getBoundingClientRect();
@@ -111,7 +117,9 @@ async function load(e){
         let file = e.target.files[0];
         if(file){
             let text = await file.text();
-            PSVG.loadFromJSON(JSON.parse(text));
+            let jso = JSON.parse(text);
+            await EQW.loadFromJSON(jso);
+            await SVGW.loadFromJSON(jso);
         }
     });
     input.click();
@@ -120,9 +128,3 @@ async function load(e){
     return false;
 }
 document.getElementById("load").addEventListener("click", load);
-
-document.getElementById("addsvg").addEventListener("click", e => {
-    let value = document.getElementById("svgtype").value;
-    PSVG.addSVG(value);   
-});
-document.getElementById("addequation").addEventListener("click", e=>PSVG.addEquation());
