@@ -1,6 +1,11 @@
 body{
     background-color: steelblue;
 }
+
+.hidden {
+    display: none !important;
+}
+
 div.definitions{
     margin: 2em;
     padding:15px;
@@ -124,19 +129,34 @@ div[data-type="equation"] input:disabled{
     content:"Show Text Input";
 }
 
-#changeinput.showinput::after{
+#changeinput.showtext::after{
+    content:"Show Table";
+}
+
+#changeinput.showtable::after{
     content:"Show Widgets";
 }
 
-#changeinput~#equationtext{
+#changeinput~#equation_widgets{
+    display: block;
+}
+
+#changeinput~#equation_text{
+    display: none;
+}
+#changeinput~#equation_table{
     display: none;
 }
 
-    #changeinput.showinput~#equationwidgets{
+    #changeinput.showtext~#equation_widgets, #changeinput.showtable~#equation_widgets{
         display: none;
     }
 
-    #changeinput.showinput~#equationtext{
+    #changeinput.showtext~#equation_text{
+        display: block;
+    }
+
+    #changeinput.showtable~#equation_table{
         display: block;
     }
 
@@ -148,9 +168,14 @@ input#equation{
     width: -webkit-fill-available;
 }
 
-input#name.error{
+input#name.error, input#value.error{
     background-color: lightcoral;
 }
+
+input#name.info, input#value.info{
+    background-color: yellow;
+}
+
 
 textarea{
     min-height: 5rem;
@@ -232,13 +257,13 @@ span.button.addAttribute{
         background-color: lightblue;
     }
 
-span.button.error{
+span.button.info{
     cursor: help;
     background-color: yellow;
-    animation: alternate-color 0.5s ease-out infinite alternate;
+    animation: alternate-color-info 0.5s ease-out infinite alternate;
 }
 
-@keyframes alternate-color{
+@keyframes alternate-color-info{
     from{
         background-color: yellow;
         box-shadow: 0 0 3px 3px white;
@@ -246,6 +271,23 @@ span.button.error{
     to{
         background-color: yellow;
         box-shadow: 0 0 3px 3px rgba(0,0,0,0);
+    }
+}
+
+span.button.error{
+    cursor: help;
+    background-color: brown;
+    animation: alternate-color-error 0.75s ease-out infinite alternate;
+}
+
+@keyframes alternate-color-error{
+    from{
+        background-color: brown;
+        /* box-shadow: 0 0 3px 3px rgba(0,0,0,0); */
+    }
+    to{
+        background-color: chocolate;
+        /* box-shadow: 0 0 3px 3px white; */
     }
 }
 

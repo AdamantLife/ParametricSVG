@@ -7,6 +7,8 @@
  *  - No circular dependencies
  *  - Decimal points must be preceded by a digit
  *  - Implicit multiplication is not allowed (e.g.- "2x" and "4(x+1)" are invalid and should instead be "2*x" and "4*(x+1)")
+ * 
+ * Variables are stored as objects in order to include metadata that may be useful.
  */
 
 /**
@@ -14,7 +16,13 @@
  * @typedef {String} Equation
  * @typedef {Number} Result
  * 
- * @typedef {Map<VariableName, Equation|Result} Variables
+ * @typedef {Object} Variable
+ * @property {VariableName} name - The name of the variable
+ * @property {Equation|Result} value - The value of the variable
+ * @property {Boolean} disabled - Whether the variable is disabled
+ * @property {String} comment - A comment for the variable
+ * 
+ * @typedef {Map<VariableName, Variable>} Variables
  */
  
 // Set to undefined to disable debugging,
@@ -51,21 +59,25 @@ function evaluateEquation(equation, variables = {}, dependencies = []){
         let variable
         while((variable = VARIABLEREG.exec(equation)) !== null){
             let variablename = variable[0];
-            if(variables[variablename] == undefined){
+            if(variables[variablename] == undefined || variables[variablename].value == undefined){
                 DEBUGDEC();
                 throw new Error("Failed to substitute variable: " + variable[0]);
+            }
+            if(variables[variablename].disabled){
+                DEBUGDEC();
+                throw new Error("Variable is disabled: " + variablename + " in " + equation);
             }
             if(dependencies.includes(variablename)){
                 DEBUGDEC();
                 throw new Error("Cyclical dependency: " + variablename + " in " + equation);
             }
-            if(typeof variables[variablename] == "string"){
+            if(typeof variables[variablename].value == "string"){
                 let depcopy = [...dependencies];
-                variables[variablename] = evaluateEquation(variables[variablename], variables, depcopy);
+                variables[variablename].value = evaluateEquation(variables[variablename].value, variables, depcopy);
                 dependencies.push(variablename);
             }
             let eq = equation;
-            equation = equation.slice(0, variable.index) + variables[variablename] + equation.slice(variable.index + variablename.length);
+            equation = equation.slice(0, variable.index) + variables[variablename].value + equation.slice(variable.index + variablename.length);
             if(eq == equation){
                 DEBUGDEC();
                 throw new Error("Failed to substitute variable: " + variable[0] + "in " + eq + " >>> result: " + equation);
@@ -190,7 +202,8 @@ function evaluateEquation(equation, variables = {}, dependencies = []){
         DEBUGDEC();
         return result;
     }
-    equation = equation.replace(/\s/g, "");
+
+    equation = equation+"";
     if(equation.startsWith("=")) equation = equation.slice(1);
     equation = substituteVariables(equation, variables, dependencies);
     DEBUGDEC();

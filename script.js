@@ -1,49 +1,30 @@
-var PSVG = new ParametricSVG(document.getElementById('svg'), document.getElementById('equations'));
-var SVGW = new SVGWidgets(PSVG, document.getElementById('svgwidgets'));
-var EQW = new EquationWidgets(PSVG, document.getElementById('equationwidgets'));
+var SVGW = new SVGWidgets(document.getElementById('svgwidgets'));
+var EQW = new EquationWidgets(document.getElementById('equation_widgets'));
+var EQTx = new EquationText(document.getElementById('equationtext'));
+var EQTa = new EquationTable(document.getElementById('equationtable'));
 
 const MIN = 50;
 let parent = document.getElementById('parent');
+var SVG = document.createElementNS(ParametricSVG.XMLNS, "svg");
+parent.appendChild(SVG);
 parent.style.minWidth = MIN + 'px';
 parent.style.minHeight = MIN + 'px';
-parent.appendChild(PSVG.svg);
-PSVG.svg.setAttribute("viewBox", `0 0 ${MIN} ${MIN}`);
-PSVG.svg.style.width = MIN + 'px';
-PSVG.svg.style.height = MIN + 'px';
-PSVG.svg.style.display = "block";
+SVG.setAttribute("viewBox", `0 0 ${MIN} ${MIN}`);
+SVG.style.width = MIN + 'px';
+SVG.style.height = MIN + 'px';
+SVG.style.display = "block";
 document.getElementById("size").innerHTML = `viewBox: 0 0 ${MIN} ${MIN}`;
 
 /** @param {Variables} */
 function equationCallback(equations){
-    let {width, height} = PSVG.svg.getBoundingClientRect();
-    console.log(width, height);
-    equations["vbw"] = width;
-    equations["vbh"] = height;
+    let {width, height} = SVG.getBoundingClientRect();
+    equations["vbw"] = {name:"vbw", value:width};
+    equations["vbh"] = {name: "vbh", value:height};
 }
-PSVG.addEquationCallback(equationCallback);
-
-/** @param {PSVGUpdate} */
-function updateCallback({type, info}){
-    if(type !== "svg") return;
-    let svg = info.svg;
-    let {width, height} = svg.getBoundingClientRect();
-    let str = `0 0 ${width} ${height}`;
-    let viewBox = svg.getAttribute("viewBox")
-    if(viewBox != str){
-        let result = /\d+ \d+ (?<width>\d+) (?<height>\d+)/.exec(viewBox);
-        if(result){
-            width = result.groups.width;
-            height = result.groups.height;
-            svg.style.width = width+"px";
-            svg.style.height = height+"px";
-        }
-        document.getElementById("size").innerHTML = `viewBox: ${viewBox}`
-    }
-}
-PSVG.addUpdateCallback(updateCallback);
+EQW.registerCallback("prepopulate", equationCallback);
 
 function resize(e){
-    let {width, height} = PSVG.svg.getBoundingClientRect();
+    let {width, height} = SVG.getBoundingClientRect();
     let delta = e.deltaY > 0 ? 100 : -100;
     mod = 1;
     if(e.ctrlKey && e.shiftKey && e.altKey){
@@ -55,23 +36,68 @@ function resize(e){
     }
     width -= delta*mod;
     width = Math.floor(Math.max(Math.min(width, 500), MIN));
-    PSVG.svg.setAttribute("viewBox", `0 0 ${width} ${width}`);
-    PSVG.svg.style.width = width + 'px';
-    PSVG.svg.style.height = width + 'px';
-    PSVG.updateEquations();
+    SVG.setAttribute("viewBox", `0 0 ${width} ${width}`);
+    SVG.style.width = width + 'px';
+    SVG.style.height = width + 'px';
+    EQW.updateEquations();
     document.getElementById("size").innerHTML = `viewBox: 0 0 ${width} ${width}`;
     e.preventDefault();
     e.stopPropagation();
     return false;
 }
-PSVG.svg.addEventListener("wheel", resize);
+SVG.addEventListener("wheel", resize);
+
+async function changeInputType(e){
+    let button = document.querySelector("button#changeinput");
+    let equations;
+    // NOTE- EQW is being updated directly by EQTa and EQTx's callbacks
+
+    if(button.classList.contains("showtext")){
+        button.classList.remove("showtext");
+        button.classList.add("showtable");
+        equations = EQTx.serialize();
+        EQTa.loadFromJSON({equations});
+    } else if(button.classList.contains("showtable")){
+        button.classList.remove("showtable");
+        // We don't need to update the text input because it's not visible
+        // and will be populated on the next click
+    }else{
+        button.classList.add("showtext");
+        let equations = EQW.serialize();
+        EQTx.loadFromJSON({equations});
+        // We don't need to load the equations into the table
+        // because it's not visible and will be populated
+        // on the next click
+    }
+}
+document.getElementById("changeinput").addEventListener("click", changeInputType);
+
+
+function updateSVG(){
+    let result = ParametricSVG.parseJSON({equations: EQW.serialize(), svgcomponents: SVGW.serialize(), attributes: {viewBox: SVG.getAttribute("viewBox")}});
+    SVG.innerHTML = "";
+    // appendChildren(...[Empty Array]) is an error (we still want to clear the SVG regardless)
+    if(!result.children.length) return;
+    SVG.appendChild(...result.children);
+}
+EQW.registerCallback("evaluated", updateSVG);
+SVGW.registerCallback("updated", updateSVG);
+
+function updateEQW(equations){
+    EQW.loadFromJSON({equations});
+    updateSVG();
+}
+EQTx.registerCallback(updateEQW);
+EQTa.registerCallback(updateEQW);
+
 
 function copy(e){
     let out;
     if(e.ctrlKey || e.metaKey){
-        out = JSON.stringify(PSVG.serialize());
+        /** @type {JsonDescription} */
+        out = {equations: EQW.serialize(), svgcomponents: SVGW.serialize(), attributes: {viewBox: SVG.getAttribute("viewBox")}}
     }else{
-        out = PSVG.svg.outerHTML;
+        out = SVG.outerHTML;
     }
     navigator.clipboard.writeText(out);
     if(e.ctrlKey || e.metaKey){
@@ -83,17 +109,18 @@ function copy(e){
     e.stopPropagation();
     return false;
 }
-PSVG.svg.addEventListener("click", copy);
+SVG.addEventListener("click", copy);
 
 function save(e){
     let out, filename;
     if(e.ctrlKey || e.metaKey){
-        let obj = PSVG.serialize();
+        /** @type {JsonDescription} */
+        let obj = {equations: EQW.serialize(), svgcomponents: SVGW.serialize(), attributes: {viewBox: SVG.getAttribute("viewBox")}}
         let blob = new Blob([JSON.stringify(obj)], {type: "application/json;charset=utf-8"});
         out = URL.createObjectURL(blob);
         filename = "parametric.json";
     }else{
-        let text = PSVG.svg.outerHTML;
+        let text = SVG.outerHTML;
         let blob = new Blob([text], {type: "text/plain;charset=utf-8"});
         out = URL.createObjectURL(blob);
         filename = "parametric.svg";
@@ -108,7 +135,7 @@ function save(e){
     e.stopPropagation();
     return false;
 }
-PSVG.svg.addEventListener("contextmenu", save);
+SVG.addEventListener("contextmenu", save);
 
 async function load(e){
     let input = document.createElement("input");
@@ -117,9 +144,13 @@ async function load(e){
         let file = e.target.files[0];
         if(file){
             let text = await file.text();
+            /** @type {JsonDescription} */
             let jso = JSON.parse(text);
             await EQW.loadFromJSON(jso);
             await SVGW.loadFromJSON(jso);
+            if(jso.attributes && jso.attributes.viewBox){
+                SVG.setAttribute("viewBox", jso.attributes.viewBox);
+            }
         }
     });
     input.click();

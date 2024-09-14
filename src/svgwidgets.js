@@ -1,18 +1,19 @@
 class SVGWidgets {
     /**
      * Constructs a new manager for SVG Widgets
-     * @param {ParametricSVG} psvg - The associated ParametricSVG instance
      * @param {Element} parent - The parent element to populate with widgets
      */
-    constructor(psvg, parent){
-        this.psvg = psvg;
+    constructor(parent){
         this.parent = parent;
         this.parser = new DOMParser();
-        this.updateSVGcallback = this.updateSVG.bind(this);
-        this.psvg.addSVGCallback(this.updateSVGcallback);
-        this.updatecallback = this.setFeedback.bind(this);
-        this.psvg.addUpdateCallback(this.updatecallback);
-        this.svgcontainer;
+
+        /**
+         * @typedef {"updated"} SVGCallbackType
+         * @typedef {Map<SVGCallbackType, Function>} Callbacks
+         * @type {Callbacks}
+         */
+        this.callbacks = {};
+
         this.setupParent();
     }
 
@@ -22,40 +23,58 @@ class SVGWidgets {
         let r = await fetch("src/widgets/svgwidgetparent.html");
         let html = await r.text();
         let doc = this.parser.parseFromString(html, "text/html");
-        this.parent.append(...doc.body.children);
-        document.getElementById("addsvg").addEventListener("click", e => {
+        this.svgcontainer = doc.getElementById("svgwidgets");
+        doc.getElementById("addsvg").addEventListener("click", e => {
             let value = document.getElementById("svgtype").value;
             this.addSVG(value);   
         });
-        this.svgcontainer = document.getElementById("svg");
+        this.parent.append(...doc.body.children);
+    }
+
+    /**
+     * Registers a callback for the given type (prepopulate or evaluated)
+     * @param {SVGCallbackType} type
+     * @param {Function} callback
+     */
+    registerCallback(type, callback){
+        if (!this.callbacks[type]) this.callbacks[type] = [];
+        this.callbacks[type].push(callback);
+    }
+
+    /**
+     * Unregisters a callback for the given type (prepopulate or evaluated).
+     * If callback is true, all callbacks for the given type will be unregistered
+     * @param {SVGCallbackType} type
+     * @param {Function|true} callback
+     */
+    unregisterCallback(type, callback){
+        if (!this.callbacks[type]) return;
+        if(callback === true) return this.callbacks[type] = [];
+        this.callbacks[type] = this.callbacks[type].filter(cb => cb !== callback);
     }
 
     clearAll(){
         this.svgcontainer.innerHTML = "";
+        this.notifyUpdate();
     }
 
     /**
-     * 
-     * @param {PSVGError} error 
+     * Notifies all callbacks that the SVG has been updated
      */
-    setFeedback(type, error){
-        let {category, name} = error;
-        if(category !== "svg") return;
-        // let button = document.createElement("span");
-        // button.id = "error";
-        // button.classList.add("button", "error");
-        // button.ariaLabel = "Error";
-        // if(error.info.type == "duplicatename"){ 
-        // error.info.target.querySelector(".controls").insertAdjacentElement("afterBegin", button);
+    notifyUpdate(){
+        let serial = this.serialize();
+        if(!this.callbacks["updated"]) return;
+        for(let callback of this.callbacks["updated"]){
+            callback(serial);
+        }
     }
 
     /**
-     * @type {SVGCallback}
+     * Adds an SVG Component to the parent
+     * @param {"circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect"} type - The type of SVG Component to add
+     * @param {Element} container - The container to add the SVG Component to
+     * @returns {Element} - The SVG Component that was added
      */
-    updateSVG(){
-        return this.serializeSVG();
-    }
-
     async addSVG(type, container){
         if(!["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"].includes(type)) throw new Error(`Invalid type ${type}`);
         let component = await fetch(`src/widgets/svgcomponent.html`);
@@ -99,7 +118,7 @@ class SVGWidgets {
         elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.updateSVG();});
         elem.querySelector("#addAttribute").addEventListener("click", this.addSVGAttribute.bind(this) );
         for(let input of elem.querySelectorAll("input")){
-            SVGWidgets.setValueReset(input, this.psvg.updateSVG.bind(this.psvg));
+            SVGWidgets.setValueReset(input, this.notifyUpdate.bind(this));
         }
         elem.querySelector("hr").addEventListener("click", e=> e.target.classList.toggle("show"))
     }
@@ -118,8 +137,8 @@ class SVGWidgets {
         let elem = doc.querySelector("div.attribute");
         let nameinput = elem.querySelector("#attributename");
         let input = elem.querySelector("#attributevalue");
-        SVGWidgets.setValueReset(nameinput, this.psvg.updateSVG.bind(this.psvg));
-        SVGWidgets.setValueReset(input, this.psvg.updateSVG.bind(this.psvg));
+        SVGWidgets.setValueReset(nameinput, this.notifyUpdate.bind(this));
+        SVGWidgets.setValueReset(input, this.notifyUpdate.bind(this));
         elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.updateSVG();});
         parent.querySelector("#attributes").append(elem);
         nameinput.focus();
@@ -145,8 +164,8 @@ class SVGWidgets {
             let doc = this.parser.parseFromString(ele, "text/html");
             point = doc.querySelector("div.point");
             container.append(point);
-            SVGWidgets.setValueReset(point.querySelector("#x"), this.psvg.updateSVG.bind(this.psvg));
-            SVGWidgets.setValueReset(point.querySelector("#y"), this.psvg.updateSVG.bind(this.psvg));
+            SVGWidgets.setValueReset(point.querySelector("#x"), this.notifyUpdate.bind(this));
+            SVGWidgets.setValueReset(point.querySelector("#y"), this.notifyUpdate.bind(this));
         }
 
         point.querySelector("#remove").addEventListener("click", e => {container.remove(); this.updateSVG();});
@@ -260,7 +279,7 @@ class SVGWidgets {
      * Serializes the current state of the SVG
      * @returns {SVGDescription[]} - An array of Serialized SVG components
      */
-    serializeSVG(){
+    serialize(){
         /** @type {SVGDescription[]} */
         let out = [];
         for(let element of this.svgcontainer.querySelectorAll(".svgcomponent")){
@@ -484,8 +503,6 @@ class SVGWidgets {
 
     async loadFromJSON(json){
         this.clearAll();
-        this.psvg.setErrorState({category: "svg", name:"Loading"});
-        this.psvg.svg.setAttribute("viewBox", json.viewBox);
         for(let svgcomponent of json.svgcomponents){
             let element = await this.addSVG(svgcomponent.type);
             if(svgcomponent.type == "circle"){
@@ -563,11 +580,6 @@ class SVGWidgets {
                 attr.querySelector("#attributevalue").value = value;
             }
         }
-        this.psvg.clearErrorState({category:"svg", name: "Loading"});
-        for(let callback of this.psvg.updatecallback){
-            callback({type:"svg", info:{svg:this.psvg.svg}});
-        }
-        // NOTE- updateEquations also calls updateSVG
-        this.psvg.updateEquations();
+        this.notifyUpdate();
     }
 }
