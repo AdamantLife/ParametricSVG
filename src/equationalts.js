@@ -3,7 +3,7 @@ class EquationText{
      *        won't be lost when the input mode is toggled. evaluateEquation does not
      *        support equation names starting with numbers.
      */
-    static EQUATIONRE = /^(?<disabled>\/\/)?\s*(?<name>\w+)\s*=\s*(?<value>.*?);?(?:\/\/(?<comment>.*))?$/i;
+    static EQUATIONRE = /^(?<disabled>\/\/)?\s*(?<name>\w+)\s*=\s*(?<value>[^;]*?);?\s*(?:\/\/\s*(?<comment>.*))?$/i;
     constructor(text){
         this.text = text;
         this.callbacks = [];
@@ -174,6 +174,7 @@ class EquationTable{
             let result, valueele;
             valueele =  row.querySelector("input#value")
             try{
+                console.log(name, value, out);
                 result = evaluateEquation(value, out);
                 out[name].value = result;
             }catch(e){
@@ -217,6 +218,6 @@ class EquationTable{
             }
         }
         this.addRow();
-        this.notifyCallbacks();
+        this.validate();
     }
 }

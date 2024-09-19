@@ -111,7 +111,7 @@ class EquationWidgets {
     updateEquations(){
         let equations = {};
         let eids = {};
-        if(this.callbacks['prepoulate']){
+        if(this.callbacks['prepopulate']){
             for(let callback of this.callbacks["prepopulate"]){
                 let result = callback(equations);
                 if(result !== undefined){
@@ -119,16 +119,18 @@ class EquationWidgets {
                 }
             }
         }
+
         this.setFeedback("all", {type:"clear"});
         let errorstate = false;
+        let equationwidgets = [];
         for(let equation of document.querySelectorAll("div.equation[data-type=equation]")){
             if(equation.getAttribute("disabled")) continue;
             let name = equation.querySelector("#name").value;
             let eid = equation.getAttribute("data-id");
-            let equationstring = equation.querySelector("#value").value;
-            if(!name && !equationstring) continue;
-            if(!equationstring.length) continue;
-            if(equationstring.length && !name){
+            let value = equation.querySelector("#value").value;
+            if(!name && !value) continue;
+            if(!value.length) continue;
+            if(value.length && !name){
                 this.setFeedback(eid, {type:"error", feedback:`Equation with no name`});
                 console.error(`Equation with no name`);
                 errorstate = true;
@@ -140,17 +142,20 @@ class EquationWidgets {
                 errorstate = true;
                 continue;
             }
-            equations[name] = equationstring;
+            let disabled = Boolean(equation.querySelector("#disabled").checked);
+            let comment = equation.querySelector("#comment").value;
+            equations[name] = {name, value, disabled, comment};
+            equationwidgets.push(name);
             eids[name] = eid;
             this.setFeedback(eid, {type:"clear"});
         }
 
-        let names = Object.keys(equations);
-        while(names.length){
-            let name = names.shift();
+        while(equationwidgets.length){
+            let name = equationwidgets.shift();
+            let value = equations[name].value;
             try{
-                equations[name] = evaluateEquation(equations[name], equations);
-                this.setFeedback(eids[name], {type:"info", feedback: `Result: ${equations[name]}`});
+                equations[name].value = evaluateEquation(value, equations);
+                this.setFeedback(eids[name], {type:"info", feedback: `Result: ${equations[name].value}`});
             }catch(e){
                 this.setFeedback(eids[name], {type:"error", feedback:e.message});
                 console.error(`Syntax error in equation "${name}": ${e.message}`);
@@ -166,6 +171,7 @@ class EquationWidgets {
                 callback(equations);
             }
         }
+        return equations;
     }
     
     async addEquation(container){
@@ -205,7 +211,7 @@ class EquationWidgets {
                 return false;
             }
         });
-        elem.querySelector("#disable").addEventListener("change", e=> {
+        elem.querySelector("#disabled").addEventListener("change", e=> {
             let parent = e.target.parentElement;
             while(parent.dataset.type !== "equation" && parent.parentElement){
                 parent = parent.parentElement;
@@ -278,7 +284,7 @@ class EquationWidgets {
         for(let equation of this.equationcontainer.querySelectorAll(".equation")){
             let name = equation.querySelector("#name").value;
             let value = equation.querySelector("#value").value;
-            let disabled = equation.querySelector("#disable").checked;
+            let disabled = equation.querySelector("#disabled").checked;
             let comment = equation.querySelector("#comment").value;
             if(!name && !value) continue;
             out[name] = {name, value, disabled, comment};
@@ -296,11 +302,12 @@ class EquationWidgets {
             let element = await this.addEquation();
             element.querySelector("#name").value = name;
             element.querySelector("#value").value = value;
-            element.querySelector("#disable").checked = disabled == true;
+            element.querySelector("#disabled").checked = disabled == true;
             if(disabled == true){
-                element.querySelector("#disable").dispatchEvent(new Event("change"));
+                element.querySelector("#disabled").dispatchEvent(new Event("change"));
             }
             element.querySelector("#comment").value = comment;
         }
+        this.updateEquations();
     }
 }

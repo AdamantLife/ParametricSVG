@@ -72,16 +72,32 @@ async function changeInputType(e){
 }
 document.getElementById("changeinput").addEventListener("click", changeInputType);
 
-
-function updateSVG(){
-    let result = ParametricSVG.parseJSON({equations: EQW.serialize(), svgcomponents: SVGW.serialize(), attributes: {viewBox: SVG.getAttribute("viewBox")}});
-    SVG.innerHTML = "";
-    // appendChildren(...[Empty Array]) is an error (we still want to clear the SVG regardless)
-    if(!result.children.length) return;
-    SVG.appendChild(...result.children);
+function updateSVG_Equations(equations){
+    updateSVG({equations});
 }
-EQW.registerCallback("evaluated", updateSVG);
-SVGW.registerCallback("updated", updateSVG);
+function updateSVG_SVGComponents(svgcomponents){
+    updateSVG({svgcomponents});
+}
+
+function updateSVG(defaults){
+    let equations = defaults.equations;
+    if(!equations){
+        equations = EQW.updateEquations();
+    }
+    let svgcomponents = defaults.svgcomponents;
+    if(!svgcomponents){
+        svgcomponents = SVGW.serialize();
+    }
+    let result = ParametricSVG.parseJSON({equations, svgcomponents, attributes: {viewBox: SVG.getAttribute("viewBox")}});
+    SVG.innerHTML = "";
+    console.log("???", result);
+    for(let r of [...result.children]){
+        console.log("!?!?!?", r);
+        SVG.appendChild(r);
+    }
+}
+EQW.registerCallback("evaluated", updateSVG_Equations);
+SVGW.registerCallback("updated", updateSVG_SVGComponents);
 
 function updateEQW(equations){
     EQW.loadFromJSON({equations});
@@ -118,7 +134,7 @@ function save(e){
         let obj = {equations: EQW.serialize(), svgcomponents: SVGW.serialize(), attributes: {viewBox: SVG.getAttribute("viewBox")}}
         let blob = new Blob([JSON.stringify(obj)], {type: "application/json;charset=utf-8"});
         out = URL.createObjectURL(blob);
-        filename = "parametric.json";
+        filename = "parametric.psvg.json";
     }else{
         let text = SVG.outerHTML;
         let blob = new Blob([text], {type: "text/plain;charset=utf-8"});
@@ -140,6 +156,7 @@ SVG.addEventListener("contextmenu", save);
 async function load(e){
     let input = document.createElement("input");
     input.type = "file";
+    input.accept = ".psvg.json";
     input.addEventListener("change", async e => {
         let file = e.target.files[0];
         if(file){

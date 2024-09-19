@@ -503,37 +503,46 @@ class SVGWidgets {
 
     async loadFromJSON(json){
         this.clearAll();
+        /**
+         * See note in parametricsvg.js
+         * We need to apply the same logic here because this script
+         * parses the json before sending the results to ParametricSVG.parseJSON()
+         * and therefore would convert undefined to "undefined"
+         */
+        function setUndefined(val){
+            return val === undefined ? "" : val
+        }
         for(let svgcomponent of json.svgcomponents){
             let element = await this.addSVG(svgcomponent.type);
             if(svgcomponent.type == "circle"){
-                element.querySelector("#cx").value = svgcomponent.cx;
-                element.querySelector("#cy").value = svgcomponent.cy;
-                element.querySelector("#r").value = svgcomponent.r;
+                element.querySelector("#cx").value = setUndefined(svgcomponent.cx);
+                element.querySelector("#cy").value = setUndefined(svgcomponent.cy);
+                element.querySelector("#r").value = setUndefined(svgcomponent.r);
             } else if(svgcomponent.type == "ellipse"){
-                element.querySelector("#cx").value = svgcomponent.cx;
-                element.querySelector("#cy").value = svgcomponent.cy;
-                element.querySelector("#rx").value = svgcomponent.rx;
-                element.querySelector("#ry").value = svgcomponent.ry;
+                element.querySelector("#cx").value = setUndefined(svgcomponent.cx);
+                element.querySelector("#cy").value = setUndefined(svgcomponent.cy);
+                element.querySelector("#rx").value = setUndefined(svgcomponent.rx);
+                element.querySelector("#ry").value = setUndefined(svgcomponent.ry);
             } else if(svgcomponent.type == "line"){
-                element.querySelector("#x1").value = svgcomponent.x1;
-                element.querySelector("#y1").value = svgcomponent.y1;
-                element.querySelector("#x2").value = svgcomponent.x2;
-                element.querySelector("#y2").value = svgcomponent.y2;
+                element.querySelector("#x1").value = setUndefined(svgcomponent.x1);
+                element.querySelector("#y1").value = setUndefined(svgcomponent.y1);
+                element.querySelector("#x2").value = setUndefined(svgcomponent.x2);
+                element.querySelector("#y2").value = setUndefined(svgcomponent.y2);
             } else if(svgcomponent.type == "rect"){
-                element.querySelector("#x").value = svgcomponent.x;
-                element.querySelector("#y").value = svgcomponent.y;
-                element.querySelector("#width").value = svgcomponent.width;
-                element.querySelector("#height").value = svgcomponent.height;
-                element.querySelector("#rx").value = svgcomponent.rx;
-                element.querySelector("#ry").value = svgcomponent.ry;
+                element.querySelector("#x").value = setUndefined(svgcomponent.x);
+                element.querySelector("#y").value = setUndefined(svgcomponent.y);
+                element.querySelector("#width").value = setUndefined(svgcomponent.width);
+                element.querySelector("#height").value = setUndefined(svgcomponent.height);
+                element.querySelector("#rx").value = setUndefined(svgcomponent.rx);
+                element.querySelector("#ry").value = setUndefined(svgcomponent.ry);
             } else if(svgcomponent.type == "polygon" || svgcomponent.type == "polyline"){
-                for(let point of svgcomponent.points){
+                for(let point of svgcomponent.points || []){
                     let pointElement = await this.addSVGCommand(svgcomponent.type, element);
                     pointElement.querySelector("#x").value = point.x;
                     pointElement.querySelector("#y").value = point.y;
                 }
             } else if(svgcomponent.type == "path"){
-                for(let point of svgcomponent.points){
+                for(let point of svgcomponent.points || []){
                     let pointElement = await this.addSVGCommand(svgcomponent.type, element);
                     pointElement.querySelector("#type").value = point.type;
                     pointElement.querySelector("#relative").checked = point.relative;

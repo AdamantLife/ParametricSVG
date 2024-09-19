@@ -181,6 +181,7 @@ var ParametricSVG = {
             }
 
             svg.appendChild(element);
+            console.log(svg,element);
         }
 
         /**
@@ -194,6 +195,7 @@ var ParametricSVG = {
                     try{
                         val = evaluateEquation(val, description.equations);
                     }catch(e){
+                        // console.error(e);
                     }
                 }
                 if(val === undefined || val === null || val === "") continue;
@@ -206,18 +208,28 @@ var ParametricSVG = {
         }
 
         /**
+         * Converts undefined values to empty strings.
+         * This function was setup because it should only be applied to
+         * values pulled by the parser, not values set in the JSON
+         * and therefore should not be handled in setComponentAttributes.
+         */
+        function setUndefined(val){
+            return val === undefined ? "" : val;
+        }
+
+        /**
          * Parses a CircleDescription into an SVG Circle
          * @param {CircleDescription} component - The Circle Description
          * @returns {Element}- The SVG Circle Component
          */
         function parseCirle(component){
             let attributes = {...component.attributes};
-            attributes.cx = component.cx;
-            attributes.cy = component.cy;
-            attributes.r = component.r;
-            let svg = document.createElementNS(ParametricSVG.XMLNS, "circle");
-            setComponentAttributes(svg, attributes);
-            return svg;
+            attributes.cx = setUndefined(component.cx);
+            attributes.cy = setUndefined(component.cy);
+            attributes.r = setUndefined(component.r);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "circle");
+            setComponentAttributes(out, attributes);
+            return out;
         }
 
         /**
@@ -227,14 +239,14 @@ var ParametricSVG = {
          */
         function parseEllipse(component){
             let attributes = {...component.attributes};
-            attributes.cx = component.cx;
-            attributes.cy = component.cy;
-            attributes.rx = component.rx;
-            attributes.ry = component.ry;
+            attributes.cx = setUndefined(component.cx);
+            attributes.cy = setUndefined(component.cy);
+            attributes.rx = setUndefined(component.rx);
+            attributes.ry = setUndefined(component.ry);
             
-            let svg = document.createElementNS(ParametricSVG.XMLNS,"ellipse");
-            setComponentAttributes(svg, component);
-            return svg;
+            let out = document.createElementNS(ParametricSVG.XMLNS,"ellipse");
+            setComponentAttributes(out, attributes);
+            return out;
         }
 
         /**
@@ -244,13 +256,13 @@ var ParametricSVG = {
          */
         function parseLine(component){
             let attributes = {...component.attributes};
-            attributes.x1 = component.x1;
-            attributes.y1 = component.y1;
-            attributes.x2 = component.x2;
-            attributes.y2 = component.y2;
-            let svg = document.createElementNS(ParametricSVG.XMLNS, "line");
-            setComponentAttributes(svg, component);
-            return svg;
+            attributes.x1 = setUndefined(component.x1);
+            attributes.y1 = setUndefined(component.y1);
+            attributes.x2 = setUndefined(component.x2);
+            attributes.y2 = setUndefined(component.y2);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "line");
+            setComponentAttributes(out, attributes);
+            return out;
         }
 
         /**
@@ -260,15 +272,17 @@ var ParametricSVG = {
          */
         function parseRectangle(component){
             let attributes = {...component.attributes};
-            attributes.x = component.x;
-            attributes.y = component.y;
-            attributes.width = component.width;
-            attributes.height = component.height;
-            attributes.rx = component.rx;
-            attributes.ry = component.ry;
-            let svg = document.createElementNS(ParametricSVG.XMLNS, "rect");
-            setComponentAttributes(svg, component);
-            return svg;
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.width = setUndefined(component.width);
+            attributes.height = setUndefined(component.height);
+            attributes.rx = setUndefined(component.rx);
+            attributes.ry = setUndefined(component.ry);
+            console.log(attributes)
+            let out = document.createElementNS(ParametricSVG.XMLNS, "rect");
+            setComponentAttributes(out, attributes);
+            console.log(out);
+            return out;
         }
 
         /**
@@ -279,12 +293,12 @@ var ParametricSVG = {
         function parsePolygon(component){
             let attributes = {...component.attributes};
             attributes.points = "";
-            for(let [x,y] of component.points){
+            for(let [x,y] of component.points||[]){
                 attributes.points += `${evaluateEquation(x, description.equations)},${evaluateEquation(y, description.equations)} `;
             }
-            let svg = document.createElementNS(ParametricSVG.XMLNS, "polygon");
-            setComponentAttributes(svg, component);
-            return svg;
+            let out = document.createElementNS(ParametricSVG.XMLNS, "polygon");
+            setComponentAttributes(out, attributes);
+            return out;
         }
 
         /**
@@ -295,12 +309,12 @@ var ParametricSVG = {
         function parsePolyline(component){
             let attributes = {...component.attributes};
             attributes.points = "";
-            for(let [x,y] of component.points){
+            for(let [x,y] of component.points||[]){
                 attributes.points += `${evaluateEquation(x, description.equations)},${evaluateEquation(y, description.equations)} `;
             }
-            let svg = document.createElementNS(ParametricSVG.XMLNS, "polyline");
-            setComponentAttributes(svg, component);
-            return svg;
+            let out = document.createElementNS(ParametricSVG.XMLNS, "polyline");
+            setComponentAttributes(out, attributes);
+            return out;
         }
 
         /**
@@ -332,7 +346,7 @@ var ParametricSVG = {
              * @param {CubicSegment|ShortCubicSegment} param0 
              * @returns {string}- The path segment string
              */
-            function parseCubic({type, x1, y1, x2, y2, x, y}){
+            function parseCubic({type, x1=0, y1=0, x2=0, y2=0, x=0, y=0}){
                 if(type == "cubic"){
                     return `C${x1} ${y1},${x2} ${y2},${x} ${y}`;
                 }else if (type == "shortcubic"){
@@ -344,7 +358,7 @@ var ParametricSVG = {
              * @param {QuadraticSegment|ShortQuadraticSegment} param0
              * @returns {string}- The path segment string
              */
-            function parseQuadratic({type, x1, y1, x, y}){
+            function parseQuadratic({type, x1=0, y1=0, x=0, y=0}){
                 if(type == "quadratic"){
                     return `Q${x1} ${y1},${x} ${y}`;
                 }else if (type == "shortquadratic"){
@@ -365,25 +379,41 @@ var ParametricSVG = {
             }
 
             let attributes = {...component.attributes};
+            // path can be used as an alias for d
+            if(component.d === undefined && component.path !== undefined){
+                component.d = component.path;
+            }else if(component.d !== undefined){
+                throw new Error("Cannot specify both d and path");
+            }
             attributes.d = "";
-            for(let segment of component.path){
+            for(let segment of component.d||[]){
                 /** @type {function} */
                 let callback;
-                switch(segment.type){
+                switch(segment.type.toLowerCase()){
+                    case "m":
                     case "move":
+                    case "l":
                     case "line":
+                    case "h":
                     case "horizontal":
+                    case "v":
                     case "vertical":
+                    case "z":
                     case "close":
                         callback = parseDefault;
+                    case "c":
                     case "cubic":
+                    case "s":
                     case "shortcubic":
                         callback = parseCubic;
                         break;
+                    case "q":
                     case "quadratic":
+                    case "t":
                     case "shortquadratic":
                         callback = parseQuadratic;
                         break;
+                    case "a":
                     case "arc":
                         callback = parseArc;
                         break;
@@ -397,10 +427,12 @@ var ParametricSVG = {
                 d+=pointval;
             }
 
-            let svg = document.createElementNS(ParametricSVG.XMLNS, "path");
-            setComponentAttributes(svg, component);
-            return svg;
+            let out = document.createElementNS(ParametricSVG.XMLNS, "path");
+            setComponentAttributes(out, attributes);
+            return out;
         }
+
+        console.log(">>>", svg)
 
         return svg;
     },
