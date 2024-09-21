@@ -285,7 +285,7 @@ class EquationWidgets {
             let name = equation.querySelector("#name").value;
             let value = equation.querySelector("#value").value;
             let disabled = equation.querySelector("#disabled").checked;
-            let comment = equation.querySelector("#comment").value;
+            let comment = equation.querySelector("#comment").value || "";
             if(!name && !value) continue;
             out[name] = {name, value, disabled, comment};
         }
@@ -306,7 +306,7 @@ class EquationWidgets {
             if(disabled == true){
                 element.querySelector("#disabled").dispatchEvent(new Event("change"));
             }
-            element.querySelector("#comment").value = comment;
+            element.querySelector("#comment").value = comment || "";
         }
         this.updateEquations();
     }

@@ -6,6 +6,7 @@ var EQTa = new EquationTable(document.getElementById('equationtable'));
 const MIN = 50;
 let parent = document.getElementById('parent');
 var SVG = document.createElementNS(ParametricSVG.XMLNS, "svg");
+SVG.setAttribute("xmlns", ParametricSVG.XMLNS);
 parent.appendChild(SVG);
 parent.style.minWidth = MIN + 'px';
 parent.style.minHeight = MIN + 'px';
@@ -90,9 +91,7 @@ function updateSVG(defaults){
     }
     let result = ParametricSVG.parseJSON({equations, svgcomponents, attributes: {viewBox: SVG.getAttribute("viewBox")}});
     SVG.innerHTML = "";
-    console.log("???", result);
     for(let r of [...result.children]){
-        console.log("!?!?!?", r);
         SVG.appendChild(r);
     }
 }
@@ -136,8 +135,8 @@ function save(e){
         out = URL.createObjectURL(blob);
         filename = "parametric.psvg.json";
     }else{
-        let text = SVG.outerHTML;
-        let blob = new Blob([text], {type: "text/plain;charset=utf-8"});
+        let text = ParametricSVG.formatDeclaration() + SVG.outerHTML;
+        let blob = new Blob([text], {type: "image/svg+xml;charset=utf-8"});
         out = URL.createObjectURL(blob);
         filename = "parametric.svg";
     }
@@ -163,11 +162,18 @@ async function load(e){
             let text = await file.text();
             /** @type {JsonDescription} */
             let jso = JSON.parse(text);
+            if(jso.attributes && jso.attributes.viewBox){
+                let vb = jso.attributes.viewBox
+                SVG.setAttribute("viewBox", vb);
+                let [x,y,width, height] = vb.split(" ");
+                SVG.style.width = width + "px";
+                SVG.style.height = height + "px";
+                document.getElementById("size").innerHTML = `viewBox: 0 0 ${width} ${height}`;
+            }
             await EQW.loadFromJSON(jso);
             await SVGW.loadFromJSON(jso);
-            if(jso.attributes && jso.attributes.viewBox){
-                SVG.setAttribute("viewBox", jso.attributes.viewBox);
-            }
+            
+            window.scrollTo(0,0);
         }
     });
     input.click();
@@ -176,3 +182,24 @@ async function load(e){
     return false;
 }
 document.getElementById("load").addEventListener("click", load);
+
+
+/**
+ * 
+ * @param {KeyboardEvent} e 
+ */
+function hotkeys(e){
+    if(e.key == "PageUp" && e.altKey){
+        window.scrollTo(0,0);
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+    if(e.key == "PageDown" && e.altKey){
+        window.scrollTo(0,document.body.scrollHeight);
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+    }
+}
+document.body.addEventListener("keyup", hotkeys);

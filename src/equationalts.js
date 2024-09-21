@@ -174,7 +174,6 @@ class EquationTable{
             let result, valueele;
             valueele =  row.querySelector("input#value")
             try{
-                console.log(name, value, out);
                 result = evaluateEquation(value, out);
                 out[name].value = result;
             }catch(e){

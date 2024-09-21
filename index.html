@@ -5,7 +5,11 @@
         <title>Parametric</title>
         <link rel="stylesheet" href="src/style.css">
     </head>
-    <body style="text-align: center;">
+    <body style="text-align: center;position: relative;">
+        <div style="position: fixed;left:.5em;right:.5em;text-align: left;">
+            <button id="scrollTop" onclick="window.scrollTo(0,0);">Scroll Top</button>
+            <button id="scrollBottom" onclick="window.scrollTo(0,document.body.scrollHeight);">Scroll Bottom</button>
+        </div>
         <div style="color:white;text-align: center;font-style: italic;">
             <span style="display:block;">Left click to copy HTML, Right click to save HTML</span>
             <span style="display:block;">Hold Ctrl/Cmd to copy/save Configuration instead</span>

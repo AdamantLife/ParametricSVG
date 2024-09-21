@@ -127,7 +127,7 @@
  * @typedef {Object} PathDescription
  * @extends {SVGDescription}
  * @property {"path"} type - The type of element
- * @property {PathSegment[]} path- The segments of the path
+ * @property {PathSegment[]} d- The segments of the path
  */
 
 /**
@@ -139,6 +139,25 @@ var ParametricSVG = {
 
     /** The namespace of the SVG; can be modified if needed */
     XMLNS : "http://www.w3.org/2000/svg",
+
+    /** Attributes of the XML File Declaration, used as a header in an SVG file.
+     * Additional attributes can be added as needed
+     */
+    XMLDECLARATION: {
+        version : "1.0",
+        encoding : "UTF-8"
+    },
+    /** The XML File Declaration as a fully formatted string
+     * @returns {string}
+    */
+    formatDeclaration: function(){
+        out = [];
+        for(let [key, value] of Object.entries(this.XMLDECLARATION)){
+            out.push(`${key}="${value}"`);
+        }
+        out = out.join(" ");
+        return `<?xml ${out}?>`;
+    },    
 
     /** DEVNOTE - parse[Element] functions are nested in parseJSON for two reasons:
      *      1) in order to avoid passing the obj argument (or its equations, specifically)
@@ -181,7 +200,6 @@ var ParametricSVG = {
             }
 
             svg.appendChild(element);
-            console.log(svg,element);
         }
 
         /**
@@ -278,10 +296,8 @@ var ParametricSVG = {
             attributes.height = setUndefined(component.height);
             attributes.rx = setUndefined(component.rx);
             attributes.ry = setUndefined(component.ry);
-            console.log(attributes)
             let out = document.createElementNS(ParametricSVG.XMLNS, "rect");
             setComponentAttributes(out, attributes);
-            console.log(out);
             return out;
         }
 
@@ -373,7 +389,7 @@ var ParametricSVG = {
              */
             function parseArc({type, x, y, rx, ry, xRotation, largeArcFlag, sweepFlag}){
                 if(type == "arc"){
-                    return `A${rx} ${ry},${xRotation},${largeArcFlag},${sweepFlag}, ${x} ${y}`;
+                    return `A${rx} ${ry},${xRotation},${largeArcFlag? 1 : 0},${sweepFlag? 1 : 0}, ${x} ${y}`;
                 }
                 throw new Error(`Unkown type: ${type}`);
             }
@@ -382,7 +398,7 @@ var ParametricSVG = {
             // path can be used as an alias for d
             if(component.d === undefined && component.path !== undefined){
                 component.d = component.path;
-            }else if(component.d !== undefined){
+            }else if(component.d !== undefined && component.path !== undefined){
                 throw new Error("Cannot specify both d and path");
             }
             attributes.d = "";
@@ -401,6 +417,7 @@ var ParametricSVG = {
                     case "z":
                     case "close":
                         callback = parseDefault;
+                        break;
                     case "c":
                     case "cubic":
                     case "s":
@@ -424,15 +441,13 @@ var ParametricSVG = {
                 if(segment.relative){
                     pointval = pointval.toLowerCase();
                 }
-                d+=pointval;
+                attributes.d+=pointval;
             }
 
             let out = document.createElementNS(ParametricSVG.XMLNS, "path");
             setComponentAttributes(out, attributes);
             return out;
         }
-
-        console.log(">>>", svg)
 
         return svg;
     },

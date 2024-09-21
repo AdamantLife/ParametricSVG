@@ -14,6 +14,8 @@ class SVGWidgets {
          */
         this.callbacks = {};
 
+        this._drag_info = {};
+
         this.setupParent();
     }
 
@@ -73,7 +75,7 @@ class SVGWidgets {
      * Adds an SVG Component to the parent
      * @param {"circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect"} type - The type of SVG Component to add
      * @param {Element} container - The container to add the SVG Component to
-     * @returns {Element} - The SVG Component that was added
+     * @returns {Promise<Element>} - The SVG Component that was added
      */
     async addSVG(type, container){
         if(!["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"].includes(type)) throw new Error(`Invalid type ${type}`);
@@ -93,6 +95,7 @@ class SVGWidgets {
         this.setupSVGElement(type, elem);
         container = container || this.svgcontainer;
         container.append(elem);
+        elem.scrollIntoView();
         return elem;
     }
     
@@ -115,7 +118,12 @@ class SVGWidgets {
             elem.querySelector(".controls").insertAdjacentElement("afterBegin", span);
             span.addEventListener("click", e=> this.addSVGCommand(type, elem) );
         }
-        elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.updateSVG();});
+        elem.addEventListener("dragenter", this.dragArrange.bind(this));
+        elem.addEventListener("dragover", this.dragOver.bind(this));
+        elem.querySelector("#name").addEventListener("dragstart", this.startDrag.bind(this));
+        // elem.querySelector("#name").addEventListener("drag", this.drag.bind(this));
+        elem.querySelector("#name").addEventListener("dragend", this.endDrag.bind(this));
+        elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.notifyUpdate();});
         elem.querySelector("#addAttribute").addEventListener("click", this.addSVGAttribute.bind(this) );
         for(let input of elem.querySelectorAll("input")){
             SVGWidgets.setValueReset(input, this.notifyUpdate.bind(this));
@@ -139,11 +147,12 @@ class SVGWidgets {
         let input = elem.querySelector("#attributevalue");
         SVGWidgets.setValueReset(nameinput, this.notifyUpdate.bind(this));
         SVGWidgets.setValueReset(input, this.notifyUpdate.bind(this));
-        elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.updateSVG();});
+        elem.querySelector("#remove").addEventListener("click", e => {elem.remove(); this.notifyUpdate();});
         parent.querySelector("#attributes").append(elem);
         nameinput.focus();
         let hr = parent.querySelector("hr");
         if(!hr.classList.contains("show")) hr.click();
+        elem.scrollIntoView();
         return elem;
     }
 
@@ -156,7 +165,7 @@ class SVGWidgets {
             let doc = this.parser.parseFromString(ele, "text/html");
             point = doc.querySelector("div.point");
             container.append(point);
-            SVGWidgets.setupPathPoints(point, this.updateSVG.bind(this));
+            SVGWidgets.setupPathPoints(point, this.notifyUpdate.bind(this));
         }else{
             container = elem.querySelector("#points");
             let resp = await fetch(`src/widgets/polypoints.html`);
@@ -168,10 +177,11 @@ class SVGWidgets {
             SVGWidgets.setValueReset(point.querySelector("#y"), this.notifyUpdate.bind(this));
         }
 
-        point.querySelector("#remove").addEventListener("click", e => {container.remove(); this.updateSVG();});
+        point.querySelector("#remove").addEventListener("click", e => {point.remove(); this.notifyUpdate();});
 
         let hr = elem.querySelector("hr");
         if(!hr.classList.contains("show")) hr.click();
+        elem.scrollIntoView();
         return point;
     }
 
@@ -273,6 +283,102 @@ class SVGWidgets {
         }
         point.querySelector("#type").addEventListener("change", updateSelection);
         updateSelection();
+    }
+
+    /**
+     * 
+     * @param {DragEvent} e 
+     */
+    startDrag(e){
+        /** @type {HTMLElement} */
+        let parent = e.target;
+        // It's possible to highlight text then click to start dragging which will
+        // trigger this event, but the objects being dragged will not be an HTMLElement
+        // which is a problem
+        while(parent && parent.classList && !parent.classList.contains("svgcomponent")){
+            parent = parent.parentElement;
+        }
+        if(!parent){
+            console.error(`Could not find svgcomponent parent of ${e.target}`);
+            e.preventDefault();
+            return;
+        }
+
+        if(!(parent instanceof HTMLElement)){
+            console.error("Parent is not an HTML Element", parent);
+            e.preventDefault();
+            return;
+        }
+
+        // Bug in Chromium (since 2013)
+        // https://stackoverflow.com/a/20733870
+        setTimeout(()=>{parent.classList.add("dragging");}, 10);
+        
+        this._drag_info.target = parent;
+
+        let parentparent = parent;
+        while(parentparent && parentparent.id != "svgwidgets"){
+            parentparent = parentparent.parentElement;
+        }
+        if(!parentparent){
+            console.error(`Could not find svgcomponent container of ${e.target}`);
+            return;
+        }
+        this._drag_info.parent = parentparent;
+        
+        e.dataTransfer.setData("text/html", e.target);
+        e.dataTransfer.effectAllowed = "all";
+    }
+
+    endDrag(e){
+        let parent = e.target;
+        while(parent && !parent.classList.contains("svgcomponent")){
+            parent = parent.parentElement;
+        }
+        if(!parent){
+            console.error(`Could not find svgcomponent parent of ${e.target}`);
+            return;
+        }
+        parent.classList.remove("dragging");
+        this._drag_info = {};
+    }
+
+    /**
+     * @param {DragEvent} e
+     */
+    dragOver(e){
+        if(!this._drag_info.target) return;
+        e.dataTransfer.dropEffect = "link";
+        e.preventDefault();
+    }
+
+    /**
+     * @param {DragEvent} e
+     */
+    dragArrange(e){
+        if(!this._drag_info.target) return;
+        let parent = e.target;
+        while(parent && !parent.classList.contains("svgcomponent")){
+            parent = parent.parentElement;
+        }
+        if(!parent){
+            console.error(`Could not find svgcomponent parent of ${e.target}`);
+            return;
+        }
+        let children = [... this._drag_info.parent.children]
+        let pindex = children.indexOf(parent);
+        let tindex = children.indexOf(this._drag_info.target);
+
+        if(pindex > tindex){
+            this._drag_info.parent.insertBefore(parent, this._drag_info.target);
+        }else{
+            this._drag_info.parent.insertBefore(this._drag_info.target, parent);
+        }
+
+        e.dataTransfer.dropEffect = "link";
+        e.preventDefault();
+
+        this.notifyUpdate();
     }
 
     /**
@@ -423,23 +529,23 @@ class SVGWidgets {
     serializePath(element){
         let out = {type: "path"};
         out.attributes = this.serializeAttributes(element);
-        out.path = [];
+        out.d = [];
         for(let point of element.querySelectorAll(".point")){
             let type = point.querySelector("#type").value;
             if(type == "close"){
-                out.path.push({type});
+                out.d.push({type});
                 continue;
             }
             let relative = point.querySelector("#relative").checked;
             if(type == "move"){
-                out.path.push({
+                out.d.push({
                     type,
                     relative,
                     x: point.querySelector("#default #x").value,
                     y: point.querySelector("#default #y").value
                 });
             }else if(type == "line"){
-                out.path.push({
+                out.d.push({
                     type,
                     relative,
                     x: point.querySelector("#default #x").value,
@@ -447,13 +553,13 @@ class SVGWidgets {
                 });
             }
             else if(type == "horizontal"){
-                out.path.push({
+                out.d.push({
                     type,
                     relative,
                     x: point.querySelector("#default #x").value
                 });
             } else if(type == "vertical"){
-                out.path.push({
+                out.d.push({
                     type,
                     relative,
                     y: point.querySelector("#default #y").value
@@ -471,7 +577,7 @@ class SVGWidgets {
                     ele.x1 = point.querySelector("#cubic #x1").value;
                     ele.y1 = point.querySelector("#cubic #y1").value;
                 }
-                out.path.push(ele);
+                out.d.push(ele);
             } else if (type == "quadratic" || type == "shortquadratic"){
                 let ele = {
                     type,
@@ -483,9 +589,9 @@ class SVGWidgets {
                     ele.x1 = point.querySelector("#quadratic #x1").value;
                     ele.y1 = point.querySelector("#quadratic #y1").value;
                 }
-                out.path.push(ele);
+                out.d.push(ele);
             } else if (type == "arc"){
-                out.path.push({
+                out.d.push({
                     type,
                     relative,
                     rx: point.querySelector("#arc #rx").value,
@@ -536,15 +642,18 @@ class SVGWidgets {
                 element.querySelector("#rx").value = setUndefined(svgcomponent.rx);
                 element.querySelector("#ry").value = setUndefined(svgcomponent.ry);
             } else if(svgcomponent.type == "polygon" || svgcomponent.type == "polyline"){
-                for(let point of svgcomponent.points || []){
+                for(let [x,y] of svgcomponent.points || []){
                     let pointElement = await this.addSVGCommand(svgcomponent.type, element);
-                    pointElement.querySelector("#x").value = point.x;
-                    pointElement.querySelector("#y").value = point.y;
+                    pointElement.querySelector("#x").value = x;
+                    pointElement.querySelector("#y").value = y;
                 }
             } else if(svgcomponent.type == "path"){
-                for(let point of svgcomponent.points || []){
+                for(let point of svgcomponent.d || svgcomponent.path || []){
                     let pointElement = await this.addSVGCommand(svgcomponent.type, element);
                     pointElement.querySelector("#type").value = point.type;
+                    // Setting the point type above won't update the displayed inputs, so we
+                    // have to trigger the onchange event manually
+                    pointElement.querySelector("#type").dispatchEvent(new Event("change"));
                     pointElement.querySelector("#relative").checked = point.relative;
                     if(point.type == "close") continue;
                     if(point.type == "horizontal"){
@@ -554,30 +663,31 @@ class SVGWidgets {
                     } else if(point.type =="move" || point.type == "line" || point.type == "cubic" || point.type == "shortcubic" || point.type == "quadratic" || point.type == "shortquadratic" || point.type == "arc"){
                         pointElement.querySelector("#default #x").value = point.x;
                         pointElement.querySelector("#default #y").value = point.y;
-                    }else if(point.type == "cubic" || point.type == "shortcubic"){
-                        pointElement.querySelector("#cubic #x2").value = point.x2;
-                        pointElement.querySelector("#cubic #y2").value = point.y2;
-                        pointElement.querySelector("#cubic #x").value = point.x;
-                        pointElement.querySelector("#cubic #y").value = point.y;
-                        if(point.type == "cubic"){
-                            pointElement.querySelector("#cubic #x1").value = point.x1;
-                            pointElement.querySelector("#cubic #y1").value = point.y1;
+                        if(point.type == "cubic" || point.type == "shortcubic"){
+                            pointElement.querySelector("#cubic #x2").value = point.x2;
+                            pointElement.querySelector("#cubic #y2").value = point.y2;
+                            pointElement.querySelector("#cubic #x").value = point.x;
+                            pointElement.querySelector("#cubic #y").value = point.y;
+                            if(point.type == "cubic"){
+                                pointElement.querySelector("#cubic #x1").value = point.x1;
+                                pointElement.querySelector("#cubic #y1").value = point.y1;
+                            }
+                        }else if(point.type == "quadratic" || point.type == "shortquadratic"){
+                            pointElement.querySelector("#quadratic #x").value = point.x;
+                            pointElement.querySelector("#quadratic #y").value = point.y;
+                            if(point.type == "quadratic"){
+                                pointElement.querySelector("#quadratic #x1").value = point.x1;
+                                pointElement.querySelector("#quadratic #y1").value = point.y1;
+                            }
+                        }else if(point.type == "arc"){
+                            pointElement.querySelector("#arc #rx").value = point.rx;
+                            pointElement.querySelector("#arc #ry").value = point.ry;
+                            pointElement.querySelector("#arc #x").value = point.x;
+                            pointElement.querySelector("#arc #y").value = point.y;
+                            pointElement.querySelector("#arc #xRotation").value = point.xRotation;
+                            pointElement.querySelector("#arc #largeArcFlag").checked = point.largeArcFlag;
+                            pointElement.querySelector("#arc #sweepFlag").checked = point.sweepFlag;
                         }
-                    }else if(point.type == "quadratic" || point.type == "shortquadratic"){
-                        pointElement.querySelector("#quadratic #x").value = point.x;
-                        pointElement.querySelector("#quadratic #y").value = point.y;
-                        if(point.type == "quadratic"){
-                            pointElement.querySelector("#quadratic #x1").value = point.x1;
-                            pointElement.querySelector("#quadratic #y1").value = point.y1;
-                        }
-                    }else if(point.type == "arc"){
-                        pointElement.querySelector("#arc #rx").value = point.rx;
-                        pointElement.querySelector("#arc #ry").value = point.ry;
-                        pointElement.querySelector("#arc #x").value = point.x;
-                        pointElement.querySelector("#arc #y").value = point.y;
-                        pointElement.querySelector("#arc #xRotation").value = point.xRotation;
-                        pointElement.querySelector("#arc #largeArcFlag").checked = point.largeArcFlag;
-                        pointElement.querySelector("#arc #sweepFlag").checked = point.sweepFlag;
                     } else{
                         throw new Error(`Unknown SVG Path point type: ${point.type}`);
                     }

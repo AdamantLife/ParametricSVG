@@ -6,6 +6,18 @@ body{
     display: none !important;
 }
 
+[draggable]{
+    cursor: grab;
+}
+
+.dragging{
+    border: 5px solid dodgerblue !important;
+}
+
+.dragging > *{
+    visibility: hidden;
+}
+
 div.definitions{
     margin: 2em;
     padding:15px;
@@ -204,6 +216,10 @@ label:has(input.coordinate){
 }
 input.coordinate{
     display: inline-flex;
+}
+
+div.point{
+    position: relative;
 }
 
 /** Widgets */
