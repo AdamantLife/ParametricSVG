@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * An array of JSON descriptions used by ParametricSVG
  * to generate SVG elements
@@ -135,7 +137,7 @@
  * @namespace ParametricSVG
  * @type {ParametricSVG}
  */
-var ParametricSVG = {
+export var ParametricSVG = {
 
     /** The namespace of the SVG; can be modified if needed */
     XMLNS : "http://www.w3.org/2000/svg",
@@ -159,6 +161,9 @@ var ParametricSVG = {
         return `<?xml ${out}?>`;
     },    
 
+    /** @callback evaluator - A default function to use when evaluating equations with parseJSON or updateSVG */
+    evaluator : null,
+
     /** DEVNOTE - parse[Element] functions are nested in parseJSON for two reasons:
      *      1) in order to avoid passing the obj argument (or its equations, specifically)
      *      2) because it doesn't seem necessary to expose them
@@ -172,9 +177,16 @@ var ParametricSVG = {
      * Parses the provided JSON and returns an SVG Element
      * @memberof ParametricSVG
      * @param {JsonDescription} description - The JSON to parse
+     * @param {function} [evaluator] - The function to evaluate equations defined by the JSON
      * @returns {Element} - The parsed SVG Element
      */
-    parseJSON : function(description){
+    parseJSON : function(description, evaluator){
+        if (!evaluator){
+            if(!ParametricSVG.evaluator){
+                throw new Error("No evaluator defined");
+            }
+            evaluator = ParametricSVG.evaluator;
+        }
         let svg = document.createElementNS(ParametricSVG.XMLNS, "svg");
         setComponentAttributes(svg, description.attributes);
 
@@ -211,7 +223,7 @@ var ParametricSVG = {
             for(let [attr, val] of Object.entries(attributes)){
                 if(val){
                     try{
-                        val = evaluateEquation(val, description.equations);
+                        val = evaluator(val, description.equations);
                     }catch(e){
                         // console.error(e);
                     }
@@ -310,7 +322,7 @@ var ParametricSVG = {
             let attributes = {...component.attributes};
             attributes.points = "";
             for(let [x,y] of component.points||[]){
-                attributes.points += `${evaluateEquation(x, description.equations)},${evaluateEquation(y, description.equations)} `;
+                attributes.points += `${evaluator(x, description.equations)},${evaluator(y, description.equations)} `;
             }
             let out = document.createElementNS(ParametricSVG.XMLNS, "polygon");
             setComponentAttributes(out, attributes);
@@ -326,7 +338,7 @@ var ParametricSVG = {
             let attributes = {...component.attributes};
             attributes.points = "";
             for(let [x,y] of component.points||[]){
-                attributes.points += `${evaluateEquation(x, description.equations)},${evaluateEquation(y, description.equations)} `;
+                attributes.points += `${evaluator(x, description.equations)},${evaluator(y, description.equations)} `;
             }
             let out = document.createElementNS(ParametricSVG.XMLNS, "polyline");
             setComponentAttributes(out, attributes);
@@ -457,10 +469,11 @@ var ParametricSVG = {
      * A convenience function which replaces the given SVG Element with the
      * parsed result of the JSON description provided.
      * @param {JsonDescription} description - The Json Description to parse
-     * @param {SVGElement} svg 
+     * @param {SVGElement} svg - The SVG Element to replace
+     * @param {function} [evaluator] - The evaluator function to use for equations
      */
-    updateSVG : function(description, svg){
-        let parsed = ParametricSVG.parse(description);
+    updateSVG : function(description, svg, evaluator){
+        let parsed = ParametricSVG.parse(description, evaluator);
         svg.replaceWith(parsed);
     }
 }

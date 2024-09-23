@@ -1,4 +1,8 @@
-class EquationText{
+"use strict";
+
+import { evaluateEquation } from "../equations.js";
+
+export class EquationText{
     /** NOTE- EquationRE supports equation names starting with numbers so that work
      *        won't be lost when the input mode is toggled. evaluateEquation does not
      *        support equation names starting with numbers.
@@ -61,7 +65,7 @@ class EquationText{
     }
 }
 
-class EquationTable{
+export class EquationTable{
     constructor(table, addhead = true){
         /** @type {Element} */
         this.table = table;
@@ -184,7 +188,6 @@ class EquationTable{
             valueele.classList.add("info");
             valueele.title = `Result: ${result}`;
         }
-        this.notifyCallbacks();
     }
 
     serialize(){

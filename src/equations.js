@@ -1,3 +1,4 @@
+"use strict";
 /**
  * Module for parsing and evaluating equations
  * 
@@ -25,16 +26,6 @@
  * @typedef {Map<VariableName, Variable>} Variables
  */
  
-// Set to undefined to disable debugging,
-// otherwise should be an integer representing spacing per indent
-var DEBUGTAB = undefined;
-function log(...args){
-    if(typeof DEBUGTAB == "undefined") return;
-    console.log(" ".repeat(DEBUGTAB*2), ...args);
-}
-DEBUGDEC = ()=>{if (typeof DEBUGTAB != "undefined") DEBUGTAB--;}
-DEBUGINC = ()=>{if (typeof DEBUGTAB != "undefined") DEBUGTAB++;}
-
 
 /**
  * Parses and evaluates an equation.
@@ -43,7 +34,17 @@ DEBUGINC = ()=>{if (typeof DEBUGTAB != "undefined") DEBUGTAB++;}
  * @param {VariableName[]} dependencies - Variables that are dependent on the equation (this is normally not supplied by the user)
  * @returns {Number} - The result of the equation
  */
-function evaluateEquation(equation, variables = {}, dependencies = []){
+export function evaluateEquation(equation, variables = {}, dependencies = []){
+    // Set to undefined to disable debugging,
+    // otherwise should be an integer representing spacing per indent
+    var DEBUGTAB = undefined;
+    function log(...args){
+        if(typeof DEBUGTAB == "undefined") return;
+        console.log(" ".repeat(DEBUGTAB*2), ...args);
+    }
+    var DEBUGDEC = ()=>{if (typeof DEBUGTAB != "undefined") DEBUGTAB--;}
+    var DEBUGINC = ()=>{if (typeof DEBUGTAB != "undefined") DEBUGTAB++;}    
+
     DEBUGINC();
 
     /**

@@ -1,4 +1,6 @@
-class EquationWidgets {
+"use strict";
+import { evaluateEquation } from "../equations.js";
+export class EquationWidgets {
     /**
      * Constructs a new manager for Equation Widgets
      * @param {Element} parent - The parent element to populate with widgets
@@ -42,7 +44,7 @@ class EquationWidgets {
     async setupParent(){
         this.parent.innerHTML = "";
         this.parent.classList.add("defintions");
-        let r = await fetch("src/widgets/equationwidgetparent.html");
+        let r = await fetch("widgets/equationwidgetparent.html");
         let html = await r.text();
         let doc = this.parser.parseFromString(html, "text/html");
         this.parent.append(...doc.body.children);
@@ -175,7 +177,7 @@ class EquationWidgets {
     }
     
     async addEquation(container){
-        let result = await fetch(`src/widgets/equation.html`);
+        let result = await fetch(`widgets/equation.html`);
         let ele = await result.text();
         let doc = this.parser.parseFromString(ele, "text/html");
         let elem = doc.querySelector("div.equation");

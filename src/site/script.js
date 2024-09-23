@@ -1,3 +1,9 @@
+import { evaluateEquation } from "../equations.js";
+import {ParametricSVG} from "../parametricsvg.js";
+import {EquationWidgets} from "./equationwidgets.js";
+import {EquationText, EquationTable} from "./equationalts.js";
+
+ParametricSVG.evaluator = evaluateEquation;
 var SVGW = new SVGWidgets(document.getElementById('svgwidgets'));
 var EQW = new EquationWidgets(document.getElementById('equation_widgets'));
 var EQTx = new EquationText(document.getElementById('equationtext'));
@@ -27,7 +33,7 @@ EQW.registerCallback("prepopulate", equationCallback);
 function resize(e){
     let {width, height} = SVG.getBoundingClientRect();
     let delta = e.deltaY > 0 ? 100 : -100;
-    mod = 1;
+    let mod = 1;
     if(e.ctrlKey && e.shiftKey && e.altKey){
         mod = .01;
     }else if(e.ctrlKey && e.shiftKey){
@@ -100,7 +106,7 @@ SVGW.registerCallback("updated", updateSVG_SVGComponents);
 
 function updateEQW(equations){
     EQW.loadFromJSON({equations});
-    updateSVG();
+    updateSVG({equations});
 }
 EQTx.registerCallback(updateEQW);
 EQTa.registerCallback(updateEQW);
@@ -172,6 +178,18 @@ async function load(e){
             }
             await EQW.loadFromJSON(jso);
             await SVGW.loadFromJSON(jso);
+            
+            let button = document.querySelector("button#changeinput");
+            // Text mode
+            if(button.classList.contains("showtext")){
+                let equations = EQW.serialize();
+                EQTx.loadFromJSON({equations});
+            }
+            // Table Mode
+            else if(button.classList.contains("showtable")){
+                let equations = EQW.serialize();
+                EQTa.loadFromJSON({equations});
+            }
             
             window.scrollTo(0,0);
         }

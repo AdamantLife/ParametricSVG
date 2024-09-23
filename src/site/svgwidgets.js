@@ -22,7 +22,7 @@ class SVGWidgets {
     async setupParent(){
         this.parent.innerHTML = "";
         this.parent.classList.add("defintions");
-        let r = await fetch("src/widgets/svgwidgetparent.html");
+        let r = await fetch("widgets/svgwidgetparent.html");
         let html = await r.text();
         let doc = this.parser.parseFromString(html, "text/html");
         this.svgcontainer = doc.getElementById("svgwidgets");
@@ -79,12 +79,12 @@ class SVGWidgets {
      */
     async addSVG(type, container){
         if(!["circle", "ellipse", "line", "path", "polygon", "polyline", "rect"].includes(type)) throw new Error(`Invalid type ${type}`);
-        let component = await fetch(`src/widgets/svgcomponent.html`);
+        let component = await fetch(`widgets/svgcomponent.html`);
         let comp = await component.text();
         let doc = this.parser.parseFromString(comp, "text/html");
         let elem = doc.querySelector("div.svgcomponent");
 
-        component = await fetch(`src/widgets/${type}.html`);
+        component = await fetch(`widgets/${type}.html`);
         comp = await component.text();
         doc = this.parser.parseFromString(comp, "text/html");
         let content = doc.querySelector("div");
@@ -139,7 +139,7 @@ class SVGWidgets {
         if(!parent.classList.contains("svgcomponent")){
             throw new Error(`Could not find parent SVG element: ${e.target.outerHTML}`);
         }
-        let attribute = await fetch(`src/widgets/attribute.html`);
+        let attribute = await fetch(`widgets/attribute.html`);
         let ele = await attribute.text();
         let doc = this.parser.parseFromString(ele, "text/html");
         let elem = doc.querySelector("div.attribute");
@@ -160,7 +160,7 @@ class SVGWidgets {
         let container, point;
         if(type == "path"){
             container = elem.querySelector("#path");
-            let resp = await fetch(`src/widgets/pathpoints.html`);
+            let resp = await fetch(`widgets/pathpoints.html`);
             let ele = await resp.text();
             let doc = this.parser.parseFromString(ele, "text/html");
             point = doc.querySelector("div.point");
@@ -168,7 +168,7 @@ class SVGWidgets {
             SVGWidgets.setupPathPoints(point, this.notifyUpdate.bind(this));
         }else{
             container = elem.querySelector("#points");
-            let resp = await fetch(`src/widgets/polypoints.html`);
+            let resp = await fetch(`widgets/polypoints.html`);
             let ele = await resp.text();
             let doc = this.parser.parseFromString(ele, "text/html");
             point = doc.querySelector("div.point");
