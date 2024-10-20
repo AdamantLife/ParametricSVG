@@ -63,7 +63,7 @@ async function changeInputType(e){
         button.classList.remove("showtext");
         button.classList.add("showtable");
         equations = EQTx.serialize();
-        EQTa.loadFromJSON({equations});
+        EQTa.loadFromJSON({equations},true);
     } else if(button.classList.contains("showtable")){
         button.classList.remove("showtable");
         // We don't need to update the text input because it's not visible
@@ -80,18 +80,18 @@ async function changeInputType(e){
 document.getElementById("changeinput").addEventListener("click", changeInputType);
 
 function updateSVG_Equations(equations){
-    updateSVG({equations});
+    updateSVG();
 }
 function updateSVG_SVGComponents(svgcomponents){
-    updateSVG({svgcomponents});
+    updateSVG();
 }
 
 function updateSVG(defaults){
-    let equations = defaults.equations;
+    let equations = defaults?.equations;
     if(!equations){
-        equations = EQW.updateEquations();
+        equations = EQW.updateEquations(true);
     }
-    let svgcomponents = defaults.svgcomponents;
+    let svgcomponents = defaults?.svgcomponents;
     if(!svgcomponents){
         svgcomponents = SVGW.serialize();
     }
@@ -109,10 +109,11 @@ function updateEQW(equations){
     updateSVG({equations});
 }
 EQTx.registerCallback(updateEQW);
-EQTa.registerCallback(updateEQW);
+EQTa.registerCallback("prepopulate", equationCallback);
+EQTa.registerCallback("evaluated", updateEQW);
 
 
-function copy(e){
+async function copy(e){
     let out;
     if(e.ctrlKey || e.metaKey){
         /** @type {JsonDescription} */
@@ -120,7 +121,7 @@ function copy(e){
     }else{
         out = SVG.outerHTML;
     }
-    navigator.clipboard.writeText(out);
+    await navigator.clipboard.writeText(out);
     if(e.ctrlKey || e.metaKey){
         alert("Configuration copied to clipboard");
     }else{
@@ -176,7 +177,9 @@ async function load(e){
                 SVG.style.height = height + "px";
                 document.getElementById("size").innerHTML = `viewBox: 0 0 ${width} ${height}`;
             }
-            await EQW.loadFromJSON(jso);
+            SVGW.clearAll();
+            EQW.clearAll();
+            await EQW.loadFromJSON(jso, true);
             await SVGW.loadFromJSON(jso);
             
             let button = document.querySelector("button#changeinput");
@@ -188,7 +191,7 @@ async function load(e){
             // Table Mode
             else if(button.classList.contains("showtable")){
                 let equations = EQW.serialize();
-                EQTa.loadFromJSON({equations});
+                EQTa.loadFromJSON({equations}, true);
             }
             
             window.scrollTo(0,0);

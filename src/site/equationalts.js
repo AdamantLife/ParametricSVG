@@ -1,6 +1,6 @@
 "use strict";
 
-import { evaluateEquation } from "../equations.js";
+import { validateEquations } from "./equationwidgets.js";
 
 export class EquationText{
     /** NOTE- EquationRE supports equation names starting with numbers so that work
@@ -83,22 +83,19 @@ export class EquationTable{
             }
             this.table.insertAdjacentElement("afterbegin", head);
         }
-        this.callbacks = [];
+        this.eid = 0;
+        /** @type {Callbacks} */
+        this.callbacks = new Map();
+        this.callbacks.set("prepopulate", []);
+        this.callbacks.set("evaluated", []);
     }
 
-    registerCallback(callback){
-        this.callbacks.push(callback);
+    registerCallback(type,callback){
+        this.callbacks.get(type).push(callback);
     }
     
     unregisterCallback(callback){
-        this.callbacks = this.callbacks.filter(c => c !== callback);
-    }
-
-    notifyCallbacks(){
-        let out = this.serialize();
-        for(let callback of this.callbacks){
-            callback(out);
-        }
+        this.callbacks.set(type, this.callbacks.get(type).filter(c => c !== callback));
     }
 
     clearAll(){
@@ -111,6 +108,8 @@ export class EquationTable{
      */
     addRow(){
         let row = document.createElement("tr");
+        row.dataset.id = this.eid;
+        this.eid++;
         for(let name of ["name", "value", "disabled", "comment"]){
             let td = document.createElement("td");
             let input = document.createElement("input");
@@ -120,7 +119,7 @@ export class EquationTable{
             }else{
                 input.type = "text";
             }
-            input.addEventListener("blur", this.validate.bind(this));
+            input.addEventListener("blur", this.updateEquations.bind(this));
             td.append(input);
             row.append(td);
         }
@@ -139,16 +138,33 @@ export class EquationTable{
                     element.removeAttribute("disabled");
                 }
             }
+            this.updateEquations();
         });
         this.table.querySelector("tbody").append(row);
         return row;
     }
 
-    validate(){
-        let out = {};
+    /**
+     * @returns {Variables}
+     */
+    updateEquations(nocall = false){
+        /** @type {EquationLookup} */
+        let equations = new Map();
+        
+        let pid = -1;
+        let temp = {};
+        for(let callback of this.callbacks.get("prepopulate")){
+            callback(temp);
+        }
+        for(let equation of Object.values(temp)){
+                equations.set(pid, equation);
+                pid--;
+        }
+
         this.table.querySelectorAll("tr .error").forEach(e => {e.classList.remove("error"); e.removeAttribute("title");});
         this.table.querySelectorAll("tr .info").forEach(e => {e.classList.remove("info"); e.removeAttribute("title");});
-
+        
+        
         for(let row of this.table.querySelectorAll("tbody > tr")){
             let disabled = row.querySelector("input#disabled").checked;
             if(disabled) continue;
@@ -156,38 +172,44 @@ export class EquationTable{
             let name = row.querySelector("input#name").value;
             let value = row.querySelector("input#value").value;
             if(!name && !value) continue;
-            if(!name && value){
+            
+            let eid = row.dataset.id;
+            equations.set(eid, {name, value});
+        }
+
+        let results = validateEquations(equations);
+        
+        /** @type {Variables} */
+        let out = {};
+
+        for(let [eid, [valid, feedback]] of results.entries()){
+            if(eid < 0) continue;
+            let row = this.table.querySelector(`tr[data-id="${eid}"]`);
+            if(!row){
+                throw new Error(`Equation ${eid} not found`);
+            }
+
+            if(!valid){
                 let nameele =  row.querySelector("input#name")
                 nameele.classList.add("error");
-                nameele.title = "Missing name";
+                nameele.title = feedback;
                 continue;
+            }else{
+                let valueele =  row.querySelector("input#value")
+                valueele.classList.add("info");
+                valueele.title = `Result: ${feedback}`;
+                let {name,value} = equations.get(eid);
+                out[name] = {name, value};
             }
-            if(out[name]){
-                let nameele = row.querySelector("input#name")
-                nameele.classList.add("error");
-                nameele.title = "Duplicate name";
-                continue;
-            }
-            if(name && !value) continue;
-
-            out[name] = {name, value, row};
         }
 
-        for(let name of Object.keys(out)){
-            let {value, row} = out[name];
-            let result, valueele;
-            valueele =  row.querySelector("input#value")
-            try{
-                result = evaluateEquation(value, out);
-                out[name].value = result;
-            }catch(e){
-                valueele.classList.add("error");
-                valueele.title = `Syntax Error: ${e.message}`;
-                continue;
+        if(!nocall){
+            for(let callback of this.callbacks.get("evaluated")){
+                callback(out);
             }
-            valueele.classList.add("info");
-            valueele.title = `Result: ${result}`;
         }
+
+        return out;
     }
 
     serialize(){
@@ -206,8 +228,9 @@ export class EquationTable{
     /**
      * 
      * @param {JsonDescription} json 
+     * @param {Boolean} nocall- If true, no evaluatedCallbacks will be called
      */
-    loadFromJSON(json){
+    loadFromJSON(json, nocall = false){
         this.clearAll();
         for(let {name, value, disabled, comment} of Object.values(json.equations)){
             let row = this.addRow();
@@ -220,6 +243,6 @@ export class EquationTable{
             }
         }
         this.addRow();
-        this.validate();
+        this.updateEquations(nocall);
     }
 }

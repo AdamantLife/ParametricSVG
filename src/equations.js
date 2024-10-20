@@ -8,6 +8,7 @@
  *  - No circular dependencies
  *  - Decimal points must be preceded by a digit
  *  - Implicit multiplication is not allowed (e.g.- "2x" and "4(x+1)" are invalid and should instead be "2*x" and "4*(x+1)")
+ *  - Parentheses must be closed
  * 
  * Variables are stored as objects in order to include metadata that may be useful.
  */
@@ -31,13 +32,15 @@
  * Parses and evaluates an equation.
  * @param {Equation} equation - The equation to evaluate
  * @param {Variables} variables - The variables to use
- * @param {VariableName[]} dependencies - Variables that are dependent on the equation (this is normally not supplied by the user)
+ * @param {VariableName[]} [dependencies] - Variables that are dependent on the equation (this is normally not supplied by the user)
  * @returns {Number} - The result of the equation
  */
-export function evaluateEquation(equation, variables = {}, dependencies = []){
+export function evaluateEquation(equation, variables = {}, dependencies = undefined){
+    if(dependencies == undefined) dependencies = [];
+
     // Set to undefined to disable debugging,
     // otherwise should be an integer representing spacing per indent
-    var DEBUGTAB = undefined;
+    var DEBUGTAB = true;
     function log(...args){
         if(typeof DEBUGTAB == "undefined") return;
         console.log(" ".repeat(DEBUGTAB*2), ...args);
@@ -56,7 +59,7 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
      */
     function substituteVariables(equation, variables, dependencies){
         DEBUGINC();
-        var VARIABLEREG = /[a-zA-Z_][a-zA-Z0-9_]*/g;
+        var VARIABLEREG = /[a-zA-Z_][a-zA-Z0-9_]*/;
         let variable
         while((variable = VARIABLEREG.exec(equation)) !== null){
             let variablename = variable[0];
@@ -74,8 +77,8 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
             }
             if(typeof variables[variablename].value == "string"){
                 let depcopy = [...dependencies];
+                depcopy.push(variablename);
                 variables[variablename].value = evaluateEquation(variables[variablename].value, variables, depcopy);
-                dependencies.push(variablename);
             }
             let eq = equation;
             equation = equation.slice(0, variable.index) + variables[variablename].value + equation.slice(variable.index + variablename.length);
@@ -85,8 +88,23 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
             }
         }
         DEBUGDEC();
+        checkParentheses(equation);
         return resolveParentheses(equation, variables, dependencies);
     }
+    /** Because of the way we're resolving the paretheses, it's easiest to count them before
+     *  resolving instead of trying to track open and closing parens.
+     * @param {Equation} equation - The equation to check
+     */
+    function checkParentheses(equation){
+        let open = equation.split("(").length - 1;
+        let close = equation.split(")").length - 1;
+        if(open == close) return;
+        if(open > close){
+            throw new Error("More opening parentheses than closing: " + equation);
+        }
+        throw new Error("More closing parentheses than opening: " + equation);
+    }
+
     /**
      * Resolves all parentheses in the equation recursively and then returns the result of evaluateOperations
      * @param {Equation} equation - The equation to resolve
@@ -96,6 +114,7 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
      */
     function resolveParentheses(equation, variables, dependencies){
         DEBUGINC();
+        // log(equation)
         
         let open = equation.indexOf("(");
         let close = equation.indexOf(")");
@@ -103,7 +122,7 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
             DEBUGDEC();
             return evaluateOperations(equation, variables, dependencies);
         }
-        if(open >= 0 && close < 0){
+        if(open > 0 && close < 0){
             DEBUGDEC();
             throw new Error("Missing closing parenthesis: " + equation);
         }
@@ -118,8 +137,9 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
             DEBUGDEC();
             throw new Error("Failed to resolve parentheses: " + eq + " >>> result: " + equation);
         }
+        // log("returning:", equation);
         DEBUGDEC();
-        return resolveParentheses(equation, variables, dependencies);        
+        return resolveParentheses(equation, variables, dependencies);
     }
 
     /**
@@ -137,6 +157,7 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
             ],
             [
                 ["*", (a,b)=>a*b],
+                ["//", (a,b)=>Math.floor(a/b)],
                 ["/", (a,b)=>a/b],
                 ["%", (a,b)=>a%b],
             ],
@@ -150,7 +171,7 @@ export function evaluateEquation(equation, variables = {}, dependencies = []){
             let match, f;
             let regs = [];
             for (let [operator, func] of operation){
-                regs.push(new RegExp("(?:^\\+)?(?<a>-?\\d+(?:\\.\\d+)?)\\"+operator+"(?<b>-?\\d+(?:\\.\\d+)?)", "g"));
+                regs.push(new RegExp("(?:^\\+)?(?<a>-?\\d+(?:\\.\\d+)?)\\s*\\"+operator+"\\s*(?<b>-?\\d+(?:\\.\\d+)?)", "g"));
             }
 
             for(let i = 0; i < regs.length; i++){

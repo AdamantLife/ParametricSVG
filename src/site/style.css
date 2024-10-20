@@ -42,10 +42,14 @@ div.definitions>label:first-of-type{
 
 div.definitions div.controls{
     text-align: center;
-    margin-top: 1em;
 }
 div.definitions div.controls>*{
     font-size: 1rem;
+}
+
+div.component:where([data-type="polygon"],[data-type="polyline"],[data-type="path"])>div.controls{
+    position: absolute;
+    right: 0;
 }
 
 div.component{
@@ -71,17 +75,9 @@ div.component *{
     margin-top: .25rem;
 }
 
-div.component>div:first-of-type{
-    display: flex;
-}
-
 div.component div.controls{
-    position:absolute;
-    right: 0;
-    top: 0;
     display: flex;
-    margin: .25rem;
-    margin-left: auto;
+    justify-content: end;
 }
 
 div.component input{
@@ -173,7 +169,7 @@ div[data-type="equation"] input:disabled{
     }
 
 input#name{
-    width: 5rem;
+    width: 15rem;
 }
 input#equation{
     width: fill-available;

@@ -207,6 +207,7 @@ class SVGWidgets {
         input.addEventListener("keyup", SVGWidgets.handleInputKeyPress)
         input.addEventListener("focus", e=> {e.target.dataset.originalvalue = e.target.value});
         input.addEventListener("blur", e=> {delete e.target.dataset.originalvalue; valueChangeHandler();});
+        input.addEventListener("change", valueChangeHandler);
     }
 
     static setupPathPoints(point, valueChangeHandler){

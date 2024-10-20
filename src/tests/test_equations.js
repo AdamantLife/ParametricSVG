@@ -1,12 +1,17 @@
+"use-strict";
+
+import { evaluateEquation } from "../equations.js";
+
 function test_variables(){
 
     let variables = {
-        a: 1,
-        b: 2,
-        c: "a + b", // 3
-        d: "c * 2", // 6
-        e: "d + f", // Circular Dependency
-        f: "e * 2",
+        a: {value: 1},
+        b: {value: 2},
+        c: {value: "a + b"}, // 3
+        d: {value: "c * 2"}, // 6
+        e: {value: "d + f"}, // Circular Dependency
+        f: {value: "e * 2"},
+        g: {value: "c + a"}, // 4; Non-Circular Dependency
     };
 
     let test_equations = [
@@ -18,6 +23,7 @@ function test_variables(){
        [ "a + 1", 2],
        [ "a + b", 3],
        [ "a + c", 4],
+       [ " a - c ", -2],
        [ "d", 6],
        [ "a+d", 7],
        [ "-a+d", 5],
@@ -33,7 +39,14 @@ function test_variables(){
        [ "(a^2 + b^2)^2/3", 8+1/3],
        [ "-3+(5/8^(3-2)*3)*2", 0.75],
        [ "3*(3+(3/4+1)+(1/2)*(1/2))", 15],
-       ["5 5", "error"]
+       ["5//3", "1"],
+       ["5 5", "error"], // No operator
+       ["1)", "error"], // More closing brackets
+       ["(1", "error"], // More opening brackets
+       ["(1 + (3 - 4)", "error"], // More opening brackets
+       ["(3 + 4) -1)", "error"], // More closing brackets
+       ["e", "error"], // Circular Dependency
+       ["g", 4],
     ]
         
 
@@ -51,6 +64,9 @@ function test_variables(){
             }else{
                 result = e.message;
             }
+        }
+        if(target == "error" && typeof result !== "string"){
+            console.error(`Failed to raise Error: ${equation}`);
         }
         console.log(equation + ">>>" + result + ">>>" + target);
     }

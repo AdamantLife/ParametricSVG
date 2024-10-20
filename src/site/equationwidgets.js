@@ -1,5 +1,74 @@
 "use strict";
 import { evaluateEquation } from "../equations.js";
+
+/**
+ * The valid callback types for the EquationWidgets object
+ * @typedef {"prepopulate"|"evaluated"} EquationCallbackType
+ * 
+ * Callback for EquationWidgets' prepopulate signal: callbacks should modify the equations object in place
+ * @callback prepopulateCallback
+ * @param {Variables} equations - The equations object to prepopulate
+ * 
+ * Callback for EquationWidgets' evaluated signal
+ * @callback evaluatedCallback
+ * @param {EquationLookup} equations - The evaluated equations
+ * 
+ * The EquationWidgets.callbacks property
+ * @typedef {Map<EquationCallbackType, (prepopulateCallback|evaluatedCallback)[]>} Callbacks
+ * @property {prepopulateCallback[]} prepopulate
+ * @property {evaluatedCallback[]} evaluated
+ * 
+ * This is a modified version of the Variables object where the keys
+ * are a unique integer instead of the variable name. This is necessary
+ * because, unlike Variables in the ParametricSVG Schema, the variables
+ * created in the gui may be invalid (i.e.- no name, duplicate name) and
+ * therefore need an alternative way to identify them.
+ * @typedef {Map<int,Equation>} EquationLookup
+ */
+
+/**
+ * A return for the validateEquations function which indicates
+ * whether each equation is valid using the equation id as the key.
+ * If the equation is valid, the first value is true, otherwise false.
+ * @typedef {Map<int,[boolean, string|int]>} EquationResultLookup
+ */
+
+/**
+ * Validates the equations in the given EquationLookup Object and returns any errors.
+ * @param {EquationLookup} equations - A mapping of ids to equations
+ * @returns {EquationResultLookup} - The errors found
+ */
+export function validateEquations(equations){
+    /** @type {EquationResultLookup} */
+    let results = new Map();
+    /** @type {Variables} */
+    let valids = {};
+    for(let [eid, {name, value}] of equations.entries()){
+        if(value.length && !name){
+            results.set(eid, [false,`Equation with no name`]);
+            continue;
+        }
+        if(equations[name] !== undefined){
+            results.set(eid, [false,`Equation with name "${name}" already exists`]);
+            continue;
+        }
+        valids[name] = {name, value, id: eid};
+    }
+
+    let equationsarray = Array.from(Object.values(valids));
+    while(equationsarray.length){
+        let { name, value, id } = equationsarray.shift();
+        try{
+            let r = evaluateEquation(value, valids);
+            results.set(id, [true, r]);
+        }catch(e){
+            results.set(id, [false, `Syntax error in equation "${name}": ${e.message}`]);
+        }
+    }
+
+    return results;
+}
+
 export class EquationWidgets {
     /**
      * Constructs a new manager for Equation Widgets
@@ -12,11 +81,11 @@ export class EquationWidgets {
         this.eid = 0;
         this.setupParent();
         /**
-         * @typedef {"prepopulate"|"evaluated"} EquationCallbackType
-         * @typedef {Map<EquationCallbackType, Function>} Callbacks
          * @type {Callbacks}
          */
-        this.callbacks = {};
+        this.callbacks = new Map();
+        this.callbacks.set("prepopulate", []);
+        this.callbacks.set("evaluated", []);
     }
 
     /**
@@ -25,8 +94,7 @@ export class EquationWidgets {
      * @param {Function} callback
      */
     registerCallback(type, callback){
-        if (!this.callbacks[type]) this.callbacks[type] = [];
-        this.callbacks[type].push(callback);
+        this.callbacks.get(type).push(callback);
     }
 
     /**
@@ -36,9 +104,8 @@ export class EquationWidgets {
      * @param {Function|true} callback
      */
     unregisterCallback(type, callback){
-        if (!this.callbacks[type]) return;
-        if(callback === true) return this.callbacks[type] = [];
-        this.callbacks[type] = this.callbacks[type].filter(cb => cb !== callback);
+        if(callback === true) return this.callbacks.set(type, []);
+        this.callbacks.set(type, this.callbacks.get(type).filter(cb => cb !== callback));
     }
 
     async setupParent(){
@@ -109,22 +176,26 @@ export class EquationWidgets {
      * to create a base object.
      * Calls the evaluated callback with the compiled object.
      * Resets and updates the feedback items on all child widgets.
+     * @param {Boolean} nocall - If true, no evaluatedCallbacks will be called
+     * @returns {Variables} - Returns valid equations
      */
-    updateEquations(){
+    updateEquations(nocall = false){
+        /** @type {Variables} */
         let equations = {};
-        let eids = {};
-        if(this.callbacks['prepopulate']){
-            for(let callback of this.callbacks["prepopulate"]){
-                let result = callback(equations);
-                if(result !== undefined){
-                    Object.apply(equations, result);
-                }
-            }
+        for(let callback of this.callbacks.get("prepopulate")){
+            callback(equations);
         }
 
         this.setFeedback("all", {type:"clear"});
-        let errorstate = false;
-        let equationwidgets = [];
+
+        /** @type {EquationLookup} */
+        let equationlookup = new Map();
+        let pid = -1;
+        for(let equation of Object.values(equations)){
+            equationlookup.set(pid, equation);
+            pid--;
+        }
+
         for(let equation of document.querySelectorAll("div.equation[data-type=equation]")){
             if(equation.getAttribute("disabled")) continue;
             let name = equation.querySelector("#name").value;
@@ -132,48 +203,35 @@ export class EquationWidgets {
             let value = equation.querySelector("#value").value;
             if(!name && !value) continue;
             if(!value.length) continue;
-            if(value.length && !name){
-                this.setFeedback(eid, {type:"error", feedback:`Equation with no name`});
-                console.error(`Equation with no name`);
-                errorstate = true;
-                continue;
-            }
-            if(equations[name] !== undefined){
-                this.setFeedback(eid, {type:"error", feedback:`Equation with name "${name}" already exists`});
-                console.error(`Equation with name "${name}" already exists`);
-                errorstate = true;
-                continue;
-            }
-            let disabled = Boolean(equation.querySelector("#disabled").checked);
-            let comment = equation.querySelector("#comment").value;
-            equations[name] = {name, value, disabled, comment};
-            equationwidgets.push(name);
-            eids[name] = eid;
-            this.setFeedback(eid, {type:"clear"});
+            equationlookup.set(eid, {name, value});
         }
 
-        while(equationwidgets.length){
-            let name = equationwidgets.shift();
-            let value = equations[name].value;
-            try{
-                equations[name].value = evaluateEquation(value, equations);
-                this.setFeedback(eids[name], {type:"info", feedback: `Result: ${equations[name].value}`});
-            }catch(e){
-                this.setFeedback(eids[name], {type:"error", feedback:e.message});
-                console.error(`Syntax error in equation "${name}": ${e.message}`);
-                delete equations[name];
-                delete eids[name];
+        let results = validateEquations(equationlookup);
+
+        let errorstate = false;
+        /** @type {Variables} */
+        let returnvals = {};
+        for(let [eid, [valid, feedback]] of results.entries()){
+            if(eid < 0) continue;
+            if(!valid){
+                this.setFeedback(eid, {type:"error", feedback:feedback});
+                console.error(error);
                 errorstate = true;
+            }else{
+                this.setFeedback(eid, {type:"info", feedback: `Result: ${feedback}`});
+                let equation = equationlookup.get(eid);
+                returnvals[equation.name] = {name: equation.name, value: feedback};
             }
         }
 
         // Only signal evaluated callback when no errors exist
-        if(!errorstate && this.callbacks["evaluated"]){
-            for(let callback of this.callbacks["evaluated"]){
-                callback(equations);
+        if(!nocall && !errorstate && this.callbacks.get("evaluated").length){
+            for(let callback of this.callbacks.get("evaluated")){
+                callback(returnvals);
             }
         }
-        return equations;
+
+        return returnvals;
     }
     
     async addEquation(container){
@@ -182,10 +240,10 @@ export class EquationWidgets {
         let doc = this.parser.parseFromString(ele, "text/html");
         let elem = doc.querySelector("div.equation");
         elem.setAttribute("data-id", this.eid++);
-        this.setupEquation(elem);
         container = container || this.equationcontainer;
         container.append(elem);
         elem.querySelector("#name").focus();
+        this.setupEquation(elem);
         return elem;
     }
 
@@ -235,6 +293,7 @@ export class EquationWidgets {
                 equation.removeAttribute("disabled");
                 comment.removeAttribute("disabled")
             }
+            this.updateEquations();
         });
         elem.querySelector("#togglecomment").addEventListener("click", e=>{
             elem.querySelector(`label[for="comment"]`).classList.toggle("hidden");
@@ -297,8 +356,9 @@ export class EquationWidgets {
     /**
      * Sets the state of the EquationWidgets based on a JSON
      * @param {JsonDescription} json - A Json Description
+     * @param {Boolean} nocall - If true, no evaluatedCallbacks will be called
      */
-    async loadFromJSON(json){
+    async loadFromJSON(json, nocall = false){
         this.clearAll();
         for(let [name, {value, disabled, comment}] of Object.entries(json.equations)){
             let element = await this.addEquation();
@@ -310,6 +370,6 @@ export class EquationWidgets {
             }
             element.querySelector("#comment").value = comment || "";
         }
-        this.updateEquations();
+        this.updateEquations(nocall);
     }
 }

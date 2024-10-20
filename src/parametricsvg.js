@@ -12,6 +12,8 @@
  * @typedef {Object} SVGDescription
  * @property {string} type - The type of element
  * @property {Object<string, string>} attributes - The attributes of the element
+ * @property {string} id - The id of the element
+ * @property {string} desc - The description of the element which will be converted to a <desc> element
  * 
  * @typedef {Object} CircleDescription
  * @extends {SVGDescription}
@@ -130,6 +132,7 @@
  * @extends {SVGDescription}
  * @property {"path"} type - The type of element
  * @property {PathSegment[]} d- The segments of the path
+ * 
  */
 
 /**
@@ -153,7 +156,7 @@ export var ParametricSVG = {
      * @returns {string}
     */
     formatDeclaration: function(){
-        out = [];
+        let out = [];
         for(let [key, value] of Object.entries(this.XMLDECLARATION)){
             out.push(`${key}="${value}"`);
         }
@@ -187,31 +190,172 @@ export var ParametricSVG = {
             }
             evaluator = ParametricSVG.evaluator;
         }
+
+        if(description.attributes?.viewBox){
+            let [x, y, width, height] = description.attributes.viewBox.split(" ");
+            if(!description.equations.vbw){
+                description.equations.vbw = {value: width};
+            }
+            if(!description.equations.vbh){
+                description.equations.vbh = {value: height};
+            }
+        }
+
+        let stringigied = JSON.stringify(description);
+        if(stringigied.includes("script")){
+            throw new Error("ParametricSVG does not support script tags or the inclusion of the string 'script'");
+        }
+
         let svg = document.createElementNS(ParametricSVG.XMLNS, "svg");
+        // NOTE- XMLNS declaration is set as normal attribute (not Namespace Attribute)
+        svg.setAttribute("xmlns", ParametricSVG.XMLNS);
         setComponentAttributes(svg, description.attributes);
 
 
         for (let obj of description.svgcomponents){
-            let element = null;
-            if(obj.type === "circle"){
-                element = parseCirle(obj);
-            }else if(obj.type === "line"){
-                element = parseLine(obj);
-            }else if(obj.type === "ellipse"){
-                element = parseEllipse(obj);
-            }else if(obj.type === "rect"){
-                element = parseRectangle(obj);
-            }else if(obj.type === "polygon"){
-                element = parsePolygon(obj);
-            }else if(obj.type === "polyline"){
-                element = parsePolyline(obj);
-            }else if(obj.type === "path"){
-                element = parsePath(obj);
-            }else{
-                throw new Error(`Invalid type ${obj.type}`);
+            if (obj.type == "raw"){
+                svg.innerHTML += obj.content;
+                continue;
             }
-
+            let element = parseComponent(obj);
             svg.appendChild(element);
+        }
+
+        /**
+         * Parses a component object into an SVG Element
+         * @param {SVGDescription} obj 
+         * @returns {Element} - The parsed SVG Element
+         */
+        function parseComponent(obj){
+            let element = null;
+            /**
+             * Full list of supported types:
+             *      (NOTE- Raw is handled separately)
+             * "circle", "line", "ellipse", "rect", "polygon", "polyline", "path",
+             * "raw", "a", "clipPath", "defs", "foreignObject", "g", "image",
+             * "linearGradient", "marker", "mask", "radialGradient", "stop",
+             * "style", "switch", "symbol", "text", "textPath", "title",
+             * "tspan", "use", "view"
+             */
+            switch(obj.type){
+                case "circle":
+                    element = parseCirle(obj);
+                    break;
+                case "ellipse":
+                    element = parseEllipse(obj);
+                    break;
+                case "line":
+                    element = parseLine(obj);
+                    break;
+                case "rect":
+                    element = parseRectangle(obj);
+                    break;
+                case "polygon":
+                    element = parsePolygon(obj);
+                    break;
+                case "polyline":
+                    element = parsePolyline(obj);
+                    break;
+                case "path":
+                    element = parsePath(obj);
+                    break;
+                case "a":
+                    element = parseLink(obj);
+                    break;
+                case "clipPath":
+                    element = parseClipPath(obj);
+                    break;
+                case "foreignObject":
+                    element = parseForeignObject(obj);
+                    break;
+                case "image":
+                    element = parseImage(obj);
+                    break;
+                case "linearGradient":
+                    element = parseLinearGradient(obj);
+                    break;
+                case "marker":
+                    element = parseMarker(obj);
+                    break;
+                case "mask":
+                    element = parseMask(obj);
+                    break;
+                case "pattern":
+                    element = parsePattern(obj);
+                    break;
+                case "radialGradient":
+                    element = parseRadialGradient(obj);
+                    break;
+                case "stop":
+                    element = parseStop(obj);
+                    break;
+                case "style":
+                    element = parseStyle(obj);
+                    break;
+                case "symbol":
+                    element = parseSymbol(obj);
+                    break;
+                case "text":
+                    element = parseText(obj);
+                    break;
+                case "textPath":
+                    element = parseTextPath(obj);
+                    break;
+                case "tspan":
+                    element = parseTSpan(obj);
+                    break;
+                case "use":
+                    element = parseUse(obj);
+                    break;
+                case "view":
+                    element = parseView(obj);
+                    break;
+                case "defs":
+                case "g":
+                case "switch":
+                case "title":
+                    element = parseGeneric(obj);
+                    break;
+                default:
+                    throw new Error(`Invalid type ${obj.type}`);
+            }
+            if(obj.id){
+                setComponentAttributes(element, {id: obj.id});
+            }
+            if(obj.desc){
+                parseDescription(obj, element);
+            }
+            if(obj.children !== undefined){
+                parseChildren(obj, element);
+            }
+            return element;
+        }
+
+        /**
+         * Parses the children of an object and appends them to the provided element
+         * @param {SVGDescription} obj - The object to parse the children of
+         * @param {Element} element - The element to append the children to
+         */
+        function parseChildren(obj, element){
+            for(let child of obj.children){
+                if(child.type == "raw"){
+                    element.innerHTML += child.content;
+                    continue;
+                }
+                let childele = parseComponent(child);
+                element.appendChild(childele);
+            } 
+        }
+
+        /**
+         * Adds a <desc> child element to the provided element.
+         * @param {SVGDescription} obj - The object to pull the description from
+         * @param {Element} element - The element to add the description to
+         */
+        function parseDescription(obj, element){
+            let desc = document.createElementNS(ParametricSVG.XMLNS, "desc");
+            desc.textContent = obj.desc;
+            element.appendChild(desc);
         }
 
         /**
@@ -221,6 +365,17 @@ export var ParametricSVG = {
          */
         function setComponentAttributes(element, attributes){
             for(let [attr, val] of Object.entries(attributes)){
+                if(Array.isArray(val)){
+                    let v = "";
+                    for(let v1 of val){
+                        try{
+                            v1 = evaluator(v1, description.equations);
+                        }catch(e){
+                        }
+                        v+=v1;
+                    }
+                    val = v;
+                }
                 if(val){
                     try{
                         val = evaluator(val, description.equations);
@@ -242,9 +397,28 @@ export var ParametricSVG = {
          * This function was setup because it should only be applied to
          * values pulled by the parser, not values set in the JSON
          * and therefore should not be handled in setComponentAttributes.
+         * Optional Validation of the value was added after the fact because it was
+         * convenient to do so here.
          */
-        function setUndefined(val){
-            return val === undefined ? "" : val;
+        function setUndefined(val, validVals){
+            if (val === undefined) return "";
+            if (!validVals) return val;
+            if (!validVals.includes(val)){
+                throw new Error(`Invalid value: ${val}`);
+            }
+            return val;
+        }
+
+        /**
+         * Parses a generic SVG Element which does not have required attributes
+         * @param {SVGDescription} component 
+         * @returns {Element} - The parsed SVG Element
+         */
+        function parseGeneric(component){
+            let attributes = {...component.attributes}
+            let out = document.createElementNS(ParametricSVG.XMLNS, component.type);
+            setComponentAttributes(out, attributes);
+            return out;
         }
 
         /**
@@ -357,15 +531,17 @@ export var ParametricSVG = {
              * @returns {string}- The path segment string
              */
             function parseDefault({type, x, y}){
+                x = evaluator(x, description.equations);
+                y = evaluator(y, description.equations);
                 if(type == "close") return "Z";
                 if(type == "move"){
-                    return `M${x} ${y}`;
+                    return `M ${x} ${y}`;
                 }else if(type == "line"){
-                    return `L${x} ${y}`;
+                    return `L ${x} ${y}`;
                 }else if(type == "horizontal"){
-                    return `H${x}`;
+                    return `H ${x}`;
                 }else if(type == "vertical"){
-                    return `V${y}`;
+                    return `V ${y}`;
                 }
                 throw new Error(`Unkown type: ${type}`);
             }
@@ -375,10 +551,16 @@ export var ParametricSVG = {
              * @returns {string}- The path segment string
              */
             function parseCubic({type, x1=0, y1=0, x2=0, y2=0, x=0, y=0}){
+                x2 = evaluator(x2, description.equations);
+                y2 = evaluator(y2, description.equations);
+                x = evaluator(x, description.equations);
+                y = evaluator(y, description.equations);
                 if(type == "cubic"){
-                    return `C${x1} ${y1},${x2} ${y2},${x} ${y}`;
+                    x1 = evaluator(x1, description.equations);
+                    y1 = evaluator(y1, description.equations);
+                    return `C ${x1} ${y1},${x2} ${y2},${x} ${y}`;
                 }else if (type == "shortcubic"){
-                    return `S${x2} ${y2},${x} ${y}`
+                    return `S ${x2} ${y2},${x} ${y}`
                 }
                 throw new Error(`Unkown type: ${type}`);
             }
@@ -387,10 +569,14 @@ export var ParametricSVG = {
              * @returns {string}- The path segment string
              */
             function parseQuadratic({type, x1=0, y1=0, x=0, y=0}){
+                x = evaluator(x, description.equations);
+                y = evaluator(y, description.equations);
                 if(type == "quadratic"){
-                    return `Q${x1} ${y1},${x} ${y}`;
+                    x1 = evaluator(x1, description.equations);
+                    y1 = evaluator(y1, description.equations);
+                    return `Q ${x1} ${y1},${x} ${y}`;
                 }else if (type == "shortquadratic"){
-                    return `T${x} ${y}`
+                    return `T ${x} ${y}`
                 }
                 throw new Error(`Unkown type: ${type}`);
                 
@@ -400,8 +586,12 @@ export var ParametricSVG = {
              * @returns {string}- The path segment string
              */
             function parseArc({type, x, y, rx, ry, xRotation, largeArcFlag, sweepFlag}){
+                x = evaluator(x, description.equations);
+                y = evaluator(y, description.equations);
+                rx = evaluator(rx, description.equations);
+                ry = evaluator(ry, description.equations);
                 if(type == "arc"){
-                    return `A${rx} ${ry},${xRotation},${largeArcFlag? 1 : 0},${sweepFlag? 1 : 0}, ${x} ${y}`;
+                    return `A ${rx} ${ry} ${xRotation} ${largeArcFlag? 1 : 0} ${sweepFlag? 1 : 0} ${x} ${y}`;
                 }
                 throw new Error(`Unkown type: ${type}`);
             }
@@ -453,13 +643,304 @@ export var ParametricSVG = {
                 if(segment.relative){
                     pointval = pointval.toLowerCase();
                 }
-                attributes.d+=pointval;
+                attributes.d+=" "+pointval;
             }
-
+            
             let out = document.createElementNS(ParametricSVG.XMLNS, "path");
             setComponentAttributes(out, attributes);
             return out;
         }
+
+        function parseLink(component){
+            let attributes = {...component.attributes};
+            attributes.href = setUndefined(component.href);
+            if(!attributes.href){
+                attributes.href = setUndefined(component["xlink:href"]);
+            }
+            attributes.target = setUndefined(component.target);
+            attributes.hreflang = setUndefined(component.hreflang);
+            attributes.ping = setUndefined(component.ping);
+            attributes.referrerpolicy = setUndefined(component.referrerpolicy, ["no-referrer", "no-referrer-when-downgrade", "origin", "origin-when-cross-origin", "same-origin", "strict-origin", "strict-origin-when-cross-origin", "unsafe-url"]);
+            attributes.rel = setUndefined(component.rel);
+            attributes.type = setUndefined(component['a.type']);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "a");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseClipPath(component){
+            let attributes = {...component.attributes};
+            attributes.clipPathUnits = setUndefined(component.clipPathUnits, ["userSpaceOnUse","objectBoundingBox"]);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "clipPath");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseForeignObject(component){
+            let attributes = {...component.attributes};
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.width = setUndefined(component.width);
+            attributes.height = setUndefined(component.height);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "foreignObject");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseImage(component){
+            let attributes = {...component.attributes};
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.width = setUndefined(component.width);
+            attributes.height = setUndefined(component.height);
+            attributes.href = setUndefined(component.href);
+            if(!attributes.href){
+                attributes.href = setUndefined(component["xlink:href"]);
+            }
+            let aspectRatio = component.preserveAspectRatio;
+            if(aspectRatio){
+                aspectRatio = {
+                    align: setUndefined(aspectRatio.align, ["none", "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid", "xMinYMax", "xMidYMax", "xMaxYMax"]),
+                    meetOrSlice: setUndefined(aspectRatio.meetOrSlice, ["meet", "slice"])
+                }
+            }
+            attributes.preserveAspectRatio = setUndefined(aspectRatio);
+            attributes.crossOrigin = setUndefined(component.crossOrigin);
+            attributes.decoding = setUndefined(component.decoding, ["auto", "sync", "async"]);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "image");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseLinearGradient(component){
+            let attributes = {...component.attributes};
+            attributes.x1 = setUndefined(component.x1);
+            attributes.y1 = setUndefined(component.y1);
+            attributes.x2 = setUndefined(component.x2);
+            attributes.y2 = setUndefined(component.y2);
+            attributes.gradientUnits = setUndefined(component.gradientUnits, ["userSpaceOnUse","objectBoundingBox"]);
+            attributes.gradientTransform = setUndefined(component.gradientTransform);
+            attributes.spreadMethod = setUndefined(component.spreadMethod, ["pad","reflect","repeat"]);
+            attributes.href = setUndefined(component.href);
+            if(!attributes.href){
+                attributes.href = setUndefined(component["xlink:href"]);
+            }
+            let out = document.createElementNS(ParametricSVG.XMLNS, "linearGradient");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseMarker(component){
+            let attributes = {...component.attributes};
+            attributes.refX = setUndefined(component.refX);
+            attributes.refY = setUndefined(component.refY);
+            attributes.markerUnits = setUndefined(component.markerUnits,["userSpaceOnUse","objectBoundingBox"]);
+            attributes.markerWidth = setUndefined(component.markerWidth);
+            attributes.markerHeight = setUndefined(component.markerHeight);
+            attributes.orient = setUndefined(component.orient);
+            let aspectRatio = component.preserveAspectRatio;
+            if(aspectRatio){
+                aspectRatio = {
+                    align: setUndefined(aspectRatio.align, ["none", "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid", "xMinYMax", "xMidYMax", "xMaxYMax"]),
+                    meetOrSlice: setUndefined(aspectRatio.meetOrSlice, ["meet", "slice"])
+                }
+            }
+            attributes.preserveAspectRatio = setUndefined(aspectRatio);
+            attributes.viewBox = setUndefined(component.viewBox);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "marker");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseMask(component){
+            let attributes = {...component.attributes};
+            attributes.maskContentUnits = setUndefined(component.maskContentUnits, ["userSpaceOnUse","objectBoundingBox"]);
+            attributes.maskUnits = setUndefined(component.maskUnits, ["userSpaceOnUse","objectBoundingBox"]);
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.width = setUndefined(component.width);
+            attributes.height = setUndefined(component.height);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "mask");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parsePattern(component){
+            let attributes = {...component.attributes};
+            if(!attributes.href){
+                attributes.href = setUndefined(component["xlink:href"]);
+            }
+            attributes.patternUnits = setUndefined(component.patternUnits, ["userSpaceOnUse", "objectBoundingBox"]);
+            attributes.patternContentUnits = setUndefined(component.patternContentUnits, ["userSpaceOnUse", "objectBoundingBox"]);
+            attributes.patternTransform = setUndefined(component.patternTransform);
+            attributes.href = setUndefined(component.href);
+            let aspectRatio = component.preserveAspectRatio;
+            if(aspectRatio){
+                aspectRatio = {
+                    align: setUndefined(aspectRatio.align, ["none", "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid", "xMinYMax", "xMidYMax", "xMaxYMax"]),
+                    meetOrSlice: setUndefined(aspectRatio.meetOrSlice, ["meet", "slice"])
+                }
+            }
+            attributes.preserveAspectRatio = setUndefined(aspectRatio);
+            attributes.viewBox = setUndefined(component.viewBox);
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.width = setUndefined(component.width);
+            attributes.height = setUndefined(component.height);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "pattern");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseRadialGradient(component){
+            let attributes = {...component.attributes};
+            attributes.cx = setUndefined(component.cx);
+            attributes.cy = setUndefined(component.cy);
+            attributes.r = setUndefined(component.r);
+            attributes.fr = setUndefined(component.fr);
+            attributes.fx = setUndefined(component.fx);
+            attributes.fy = setUndefined(component.fy);
+            attributes.gradientUnits = setUndefined(component.gradientUnits, ["userSpaceOnUse","objectBoundingBox"]);
+            attributes.gradientTransform = setUndefined(component.gradientTransform);
+            attributes.spreadMethod = setUndefined(component.spreadMethod, ["pad","reflect","repeat"]);
+            attributes.href = setUndefined(component.href);
+            if(!attributes.href){
+                attributes.href = setUndefined(component["xlink:href"]);
+            }
+            let out = document.createElementNS(ParametricSVG.XMLNS, "radialGradient");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseStop(component){
+            let attributes = {...component.attributes};
+            attributes.offset = setUndefined(component.offset);
+            attributes['stop-color'] = setUndefined(component.stopColor);
+            attributes['stop-opacity'] = setUndefined(component.stopOpacity);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "stop");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseStyle(component){
+            let attributes = {...component.attributes};
+            attributes.type = setUndefined(component['style.type']);
+            attributes.media = setUndefined(component.media);
+            attributes.title = setUndefined(component.title);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "style");
+            setComponentAttributes(out, attributes);
+            out.textContent = component.children;
+            return out;
+        }
+
+        function parseSymbol(component){
+            let attributes = {...component.attributes};
+            attributes.viewBox = setUndefined(component.viewBox);
+            let aspectRatio = component.preserveAspectRatio;
+            if(aspectRatio){
+                aspectRatio = {
+                    align: setUndefined(aspectRatio.align, ["none", "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid", "xMinYMax", "xMidYMax", "xMaxYMax"]),
+                    meetOrSlice: setUndefined(aspectRatio.meetOrSlice, ["meet", "slice"])
+                }
+            }
+            attributes.preserveAspectRatio = setUndefined(aspectRatio);
+            attributes.refX = setUndefined(component.refX);
+            attributes.refY = setUndefined(component.refY);
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.width = setUndefined(component.width);
+            attributes.height = setUndefined(component.height);            
+            let out = document.createElementNS(ParametricSVG.XMLNS, "symbol");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseText(component){
+            let attributes = {...component.attributes};
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.dx = setUndefined(component.dx);
+            attributes.dy = setUndefined(component.dy);
+            attributes.rotate = setUndefined(component.rotate);
+            attributes.textLength = setUndefined(component.textLength);
+            attributes.lengthAdjust = setUndefined(component.lengthAdjust, ["spacing", "spacingAndGlyphs"]);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "text");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseTextPath(component){
+            let attributes = {...component.attributes};
+            attributes.href = setUndefined(component.href);
+            // The MDN docs do not list xlink:href at all (not even deprecated)
+            // so it is not included at the moment. The comment is saved in case
+            // the docs are incomplete and xlink:href can be used.
+            // if(!attributes.href){
+            //     attributes.href = setUndefined(component["xlink:href"]);
+            // }
+            attributes.lengthAdjust = setUndefined(component.lengthAdjust, ["spacing", "spacingAndGlyphs"]);
+            attributes.path = setUndefined(component.path);
+            // NOTE- This may need to be updated in the future
+            //       (it may be useful to extract the path parsing from parsePath)
+            if(attributes.path){
+                let path = parsePath({d: attributes.path});
+                attributes.path = path.getAttributeNS(null, "d");
+            }
+            attributes.startOffset = setUndefined(component.startOffset);
+            attributes.method = setUndefined(component.method, ["align", "stretch"]);
+            attributes.spacing = setUndefined(component.spacing, ["auto", "exact"]);
+            attributes.side = setUndefined(component.side, ["left", "right"]);
+            attributes.textLength = setUndefined(component.textLength);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "textPath");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseTSpan(component){
+            let attributes = {...component.attributes};
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.dx = setUndefined(component.dx);
+            attributes.dy = setUndefined(component.dy);
+            attributes.rotate = setUndefined(component.rotate);
+            attributes.textLength = setUndefined(component.textLength);
+            attributes.lengthAdjust = setUndefined(component.lengthAdjust, ["spacing", "spacingAndGlyphs"]);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "tspan");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseUse(component){
+            let attributes = {...component.attributes};
+            attributes.x = setUndefined(component.x);
+            attributes.y = setUndefined(component.y);
+            attributes.width = setUndefined(component.width);
+            attributes.height = setUndefined(component.height);
+            attributes.href = setUndefined(component.href);
+            if(!attributes.href){
+                attributes.href = setUndefined(component["xlink:href"]);
+            }
+            let out = document.createElementNS(ParametricSVG.XMLNS, "use");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
+        function parseView(component){
+            let attributes = {...component.attributes};
+            attributes.viewBox = setUndefined(component.viewBox);
+            let aspectRatio = component.preserveAspectRatio;
+            if(aspectRatio){
+                aspectRatio = {
+                    align: setUndefined(aspectRatio.align, ["none", "xMinYMin", "xMidYMin", "xMaxYMin", "xMinYMid", "xMidYMid", "xMaxYMid", "xMinYMax", "xMidYMax", "xMaxYMax"]),
+                    meetOrSlice: setUndefined(aspectRatio.meetOrSlice, ["meet", "slice"])
+                }
+            }
+            attributes.preserveAspectRatio = setUndefined(aspectRatio);
+            let out = document.createElementNS(ParametricSVG.XMLNS, "view");
+            setComponentAttributes(out, attributes);
+            return out;
+        }
+
 
         return svg;
     },
@@ -473,7 +954,7 @@ export var ParametricSVG = {
      * @param {function} [evaluator] - The evaluator function to use for equations
      */
     updateSVG : function(description, svg, evaluator){
-        let parsed = ParametricSVG.parse(description, evaluator);
+        let parsed = ParametricSVG.parseJSON(description, evaluator);
         svg.replaceWith(parsed);
     }
 }

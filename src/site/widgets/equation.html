@@ -1,16 +1,17 @@
 <!DOCTYPE html>
 <div class="component equation" data-type="equation">
+    <div class="controls">
+        <label class="slider">
+            <input id="disabled" type="checkbox" />
+        </label>
+        <span id="togglecomment" class="button addAttribute" title="Toggle Comment" aria-label="Toggle Comment"></span>
+        <span id="remove" class="button remove" title="Remove" aria-label="Remove"></span>
+    </div>
     <div>
         <label for="name">Name:<input id="name" type="text" />
         </label>
-        <div class="controls">
-            <label class="slider">
-                <input id="disabled" type="checkbox" />
-            </label>
-            <span id="togglecomment" class="button addAttribute" title="Toggle Comment" aria-label="Toggle Comment"></span>
-            <span id="remove" class="button remove" title="Remove" aria-label="Remove"></span>
-        </div>
     </div>
     <label for="value" style="display: block;">=<input id="value" type="text" /></label>
     <label class="hidden" for="comment" style="display: block;">Comment: <input id="comment" type="text"/></label>
+    <hr />
 </div>
