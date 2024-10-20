@@ -216,6 +216,12 @@ export function evaluateEquation(equation, variables = {}, dependencies = undefi
      */
     function parseValue(equation, variables, dependencies){
         DEBUGINC();
+        // Number() converts empty strings and whitespace-exclusive
+        // strings to 0, so we need to check that first
+        if(!equation.trim()){
+            DEBUGDEC();
+            throw new Error(`Empty String: "${equation}"`);
+        }
         let result = Number(equation);
         if(isNaN(result)){
             DEBUGDEC();
