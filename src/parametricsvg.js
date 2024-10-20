@@ -531,15 +531,18 @@ export var ParametricSVG = {
              * @returns {string}- The path segment string
              */
             function parseDefault({type, x, y}){
-                x = evaluator(x, description.equations);
-                y = evaluator(y, description.equations);
                 if(type == "close") return "Z";
+                try{
+                    x = evaluator(x, description.equations);
+                }catch(e){  }
+                if(type == "horizontal"){ return `H ${x}`; }
+                try{
+                    y = evaluator(y, description.equations);
+                }catch(e){  }
                 if(type == "move"){
                     return `M ${x} ${y}`;
                 }else if(type == "line"){
                     return `L ${x} ${y}`;
-                }else if(type == "horizontal"){
-                    return `H ${x}`;
                 }else if(type == "vertical"){
                     return `V ${y}`;
                 }
